@@ -83,6 +83,16 @@
                     sendMessage();
                 }
             });
+
+            const CONVERSATION_ID_KEY = "conversationID";
+            function getConversationID() {
+                let conversationID = localStorage.getItem(CONVERSATION_ID_KEY);
+                if (conversationID == null) {
+                    conversationID = crypto.randomUUID();
+                    localStorage.setItem(CONVERSATION_ID_KEY, conversationID);
+                }
+                return conversationID;
+            }
         </script>
     </body>
 </html>

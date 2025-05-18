@@ -49,11 +49,32 @@ ALTER SEQUENCE public.concepts_id_seq OWNED BY public.concepts.id;
 --
 
 CREATE TABLE public.messages (
+    id integer NOT NULL,
     conversation_id uuid NOT NULL,
     is_cheryl boolean NOT NULL,
     "timestamp" timestamp with time zone NOT NULL,
     message text NOT NULL
 );
+
+
+--
+-- Name: messages_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.messages_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: messages_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.messages_id_seq OWNED BY public.messages.id;
 
 
 --
@@ -66,10 +87,28 @@ CREATE TABLE public.schema_migrations (
 
 
 --
+-- Name: sid_conversation_ids; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.sid_conversation_ids (
+    sid uuid NOT NULL,
+    conversation_id uuid NOT NULL,
+    "timestamp" timestamp with time zone NOT NULL
+);
+
+
+--
 -- Name: concepts id; Type: DEFAULT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.concepts ALTER COLUMN id SET DEFAULT nextval('public.concepts_id_seq'::regclass);
+
+
+--
+-- Name: messages id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.messages ALTER COLUMN id SET DEFAULT nextval('public.messages_id_seq'::regclass);
 
 
 --
@@ -81,6 +120,14 @@ ALTER TABLE ONLY public.concepts
 
 
 --
+-- Name: messages messages_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.messages
+    ADD CONSTRAINT messages_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: schema_migrations schema_migrations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -89,10 +136,25 @@ ALTER TABLE ONLY public.schema_migrations
 
 
 --
+-- Name: sid_conversation_ids sid_conversation_ids_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.sid_conversation_ids
+    ADD CONSTRAINT sid_conversation_ids_pkey PRIMARY KEY (sid);
+
+
+--
 -- Name: idx_messages_conversation_id_timestamp; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_messages_conversation_id_timestamp ON public.messages USING btree (conversation_id, "timestamp");
+
+
+--
+-- Name: idx_sid_conversation_ids_sid; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_sid_conversation_ids_sid ON public.sid_conversation_ids USING btree (sid);
 
 
 --
@@ -106,4 +168,5 @@ CREATE INDEX idx_messages_conversation_id_timestamp ON public.messages USING btr
 
 INSERT INTO public.schema_migrations (version) VALUES
     ('20250518131704'),
-    ('20250518131708');
+    ('20250518131708'),
+    ('20250518181644');

@@ -8,6 +8,9 @@ import psycopg
 import os
 from psycopg_pool import ConnectionPool
 from flask_socketio import Namespace
+from transformers.pipelines import pipeline
+
+pipe = pipeline("text-generation", model="Qwen/Qwen3-0.6B")
 
 # Load DATABASE_URL from environment variables
 DATABASE_URL = os.environ.get("DATABASE_URL")
@@ -31,7 +34,7 @@ socketio = SocketIO(app)
 class Message(BaseModel):
     message: str
     timestamp: datetime.datetime
-    is_cheryl: bool
+    role: str
     conversation_id: UUID
 
 class Concept(BaseModel):
@@ -97,10 +100,11 @@ def get_messages_of_conversation(conversation_id: UUID, timestamp: Optional[date
             with conn.cursor() as cur:
                 cur.execute(
                     """
-                    SELECT message, timestamp, is_cheryl, conversation_id
+                    SELECT message, timestamp, role, conversation_id
                     FROM messages
                     WHERE conversation_id = %s AND (%s::timestamptz IS NULL OR timestamp >= %s::timestamptz)
-                    ORDER BY timestamp;
+                    ORDER BY timestamp
+                    LIMIT 50;
                     """,
                     (str(conversation_id), timestamp, timestamp),  # Pass timestamp twice
                 )
@@ -109,7 +113,7 @@ def get_messages_of_conversation(conversation_id: UUID, timestamp: Optional[date
                         message = Message(
                             message=row[0],
                             timestamp=row[1],
-                            is_cheryl=row[2],
+                            role=row[2],
                             conversation_id=row[3]
                         )
                         messages.append(message)
@@ -152,8 +156,8 @@ def set_message(message: Message):
         with get_db_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute(
-                    "INSERT INTO messages (conversation_id, timestamp, message, is_cheryl) VALUES (%s, %s, %s, %s)",
-                    (str(message.conversation_id), message.timestamp, message.message, message.is_cheryl),
+                    "INSERT INTO messages (conversation_id, timestamp, message, role) VALUES (%s, %s, %s, %s)",
+                    (str(message.conversation_id), message.timestamp, message.message, message.role),
                 )
                 conn.commit()
     except psycopg.Error as e:
@@ -172,7 +176,7 @@ def test_connect():
     print(f"Client connected: {sid}")
 
     emit('cheryl_replies', {
-        'is_cheryl': True,
+        'role': 'cheryl',
         'message': 'Hi there 👋 I\'m Cheryl!'
     })
 
@@ -181,28 +185,82 @@ def test_disconnect():
     """Handles WebSocket disconnections."""
     print(f"Client disconnected: {session['sid']}")
 
+# hey-cheryl/app.py#L157-L180
 @socketio.on('new_message')
-def handle_message(json):
+def handle_message(json_data): # Renamed 'json' to 'json_data'
     """Handles incoming WebSocket messages and sends a response."""
+    global pipe # Explicitly state we are using the global 'pipe'
 
     set_message(Message(
-        is_cheryl=False,
-        conversation_id=session['conversation_id'],
-        message=json['data'],
+        role='user',
+        conversation_id=UUID(session['conversation_id']), # Ensure conversation_id is UUID
+        message=json_data['data'],
         timestamp=datetime.datetime.now()
     ))
 
-    # TODO: this is where we shall generate a response!
+    messages_from_db = get_messages_of_conversation(UUID(session['conversation_id']), None) # Ensure UUID
+    chat_history_for_model = [{ 'role': m.role, 'content': m.message} for m in messages_from_db]
+    print(f"pipeline input: {chat_history_for_model}")
+
+    # Use the initialized 'pipe' object
+    raw_model_response = pipe(
+        chat_history_for_model,
+        max_new_tokens=64,
+        repetition_penalty=1.2,
+        do_sample=True,
+        temperature=1.5,
+        top_k=50
+    )
+    print(f"Raw model response: {raw_model_response}")
+
+    # It's highly recommended to print this during development to understand its structure:
+    # print(f"Raw model response: {raw_model_response}")
+
+    assistant_reply_content = ""
+    if raw_model_response and isinstance(raw_model_response, list) and raw_model_response[0]:
+        generated_output = raw_model_response[0].get("generated_text")
+
+        if isinstance(generated_output, list) and generated_output:
+            # Assumes the last message in the list is the assistant's new reply
+            last_message_in_chat = generated_output[-1]
+            if isinstance(last_message_in_chat, dict) and last_message_in_chat.get("role") == "assistant":
+                assistant_reply_content = last_message_in_chat.get("content", "")
+            elif isinstance(last_message_in_chat, dict) and "content" in last_message_in_chat :
+                # If role is not 'assistant' or not present, but content is, maybe it's still the reply?
+                # This part might need adjustment based on Qwen's specific output for your setup.
+                # For now, we'll assume if it's the last dict with content, it's the reply.
+                assistant_reply_content = last_message_in_chat.get("content", "")
+                print(f"Warning: Last message in generated_text list did not have role 'assistant': {last_message_in_chat}")
+            else:
+                # If the last item is not a dict or doesn't have 'content',
+                # this could happen if Qwen returns the entire chat including the user's message last.
+                # You might need to iterate backwards to find the *actual* last assistant message.
+                # For now, this is a simplified extraction.
+                # A robust way: find the last message in generated_output that wasn't in chat_history_for_model
+                assistant_reply_content = str(last_message_in_chat) # Fallback to string conversion
+                print(f"Warning: Could not extract content cleanly from last message dict: {last_message_in_chat}")
+
+
+        elif isinstance(generated_output, str): # If generated_text is just the new string
+            assistant_reply_content = generated_output
+        else:
+            print(f"Unexpected structure or empty generated_text: {generated_output}")
+            assistant_reply_content = "Error: Model generated an unexpected response format."
+    else:
+        print(f"Unexpected raw model response structure or empty response: {raw_model_response}")
+        assistant_reply_content = "Error: Model did not return a valid response."
+
     reply = Message(
-        is_cheryl=True,
-        conversation_id=session['conversation_id'],
-        message='Cheryl replies',
+        role='cheryl', # This is your application-specific role for the AI
+        conversation_id=UUID(session['conversation_id']), # Ensure UUID
+        message=assistant_reply_content,
         timestamp=datetime.datetime.now()
     )
 
     set_message(reply)
 
     emit('cheryl_replies', reply.model_dump(mode='json'))
+
 
 @socketio.on('authenticate')
 def handle_authentication(json):

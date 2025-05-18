@@ -51,7 +51,7 @@ ALTER SEQUENCE public.concepts_id_seq OWNED BY public.concepts.id;
 CREATE TABLE public.messages (
     id integer NOT NULL,
     conversation_id uuid NOT NULL,
-    is_cheryl boolean NOT NULL,
+    role text NOT NULL,
     "timestamp" timestamp with time zone NOT NULL,
     message text NOT NULL
 );

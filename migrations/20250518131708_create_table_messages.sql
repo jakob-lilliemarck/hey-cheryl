@@ -2,7 +2,7 @@
 CREATE TABLE messages (
     id SERIAL PRIMARY KEY,
     conversation_id UUID NOT NULL,
-    is_cheryl BOOLEAN NOT NULL,
+    role TEXT NOT NULL,
     timestamp TIMESTAMPTZ NOT NULL,
     message TEXT NOT NULL
 );

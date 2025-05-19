@@ -19,12 +19,36 @@ GET_MESSAGES_OF_CONVERSATION = """
     LIMIT 100;
 """
 
+SET_MESSAGE = """
+    INSERT INTO messages (conversation_id, timestamp, message, role)
+    VALUES (%s, %s, %s, %s);
+"""
+
 class MessagesRepository:
-    class MessagesRepository:
-            pool: ConnectionPool[psycopg.Connection[TupleRow]]
+    pool: ConnectionPool[psycopg.Connection[TupleRow]]
 
     def __init__(self, pool: ConnectionPool[psycopg.Connection[TupleRow]]):
-        self.pool = pool  # Assignment, type already declared at class level
+        self.pool = pool
+
+    def set_message(self, message: Message):
+        """
+        Inserts a message record.
+        """
+        try:
+            with self.pool.connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        SET_MESSAGE,
+                        (
+                            str(message.conversation_id),
+                            message.timestamp,
+                            message.message,
+                            message.role
+                        ),
+                    )
+                    conn.commit()
+        except psycopg.Error as e:
+            print(f"Database error: {e}")
 
     def get_messages_of_conversation(
         self,

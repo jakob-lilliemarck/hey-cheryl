@@ -1,7 +1,7 @@
 from flask import Flask, render_template, request, session
 from flask_socketio import SocketIO, emit
-from pydantic import BaseModel, ValidationError
-from typing import Optional, List
+from pydantic import ValidationError
+from typing import List
 from uuid import UUID, uuid4
 import datetime
 import psycopg
@@ -10,6 +10,8 @@ from src.models.message import Message
 from src.models.concept import Concept
 from src.models.conversation import Conversation
 from src.repositories.messages import MessagesRepository
+from src.repositories.conversations import ConversationsRepository
+from src.repositories.concepts import ConceptsRepository
 from src.config.config import config
 from psycopg import Connection
 # --- BEGIN: Import Hugging Face AutoClasses and torch ---
@@ -18,54 +20,42 @@ from transformers.models.auto.modeling_auto import AutoModelForCausalLM
 import torch
 from psycopg.rows import TupleRow
 
+
 ASSISTANT = 'assistant'
 SYSTEM = 'system'
 USER = 'user'
 
+
 tokenizer = AutoTokenizer.from_pretrained(config.MODEL_NAME)
 model = AutoModelForCausalLM.from_pretrained(config.MODEL_NAME)
+
 
 app = Flask(__name__, template_folder='../templates')
 app.config['SECRET_KEY'] = config.SECRET_KEY
 app.config['SESSION_TYPE'] = config.SESSION_TYPE
 socketio = SocketIO(app)
 
+
 # Create a connection pool (psycopg_pool)
 pool = ConnectionPool(
     config.DATABASE_URL,
     connection_class=Connection[TupleRow]
 )
-# Helper function to get a database connection from the pool
-def get_db_connection():
-    try:
-        return pool.connection()
-    except psycopg.Error as e:
-        print(f"Database connection error: {e}")
-        raise
+
 
 # --- Load data at startup ---
-# Use a list of Concepts, because that is what you want to load
-all_concepts: List[Concept] = []  # Initialize as an empty list
-
+all_concepts: List[Concept] = []
 def load_concepts_at_startup():
     """Loads concepts from the database at application startup."""
     global all_concepts
-    try:
-        with get_db_connection() as conn:
-            with conn.cursor() as cur:
-                cur.execute("SELECT id, concept, meaning FROM concepts;")
-                for row in cur.fetchall():
-                    try:
-                        concept = Concept(id=row[0], concept=row[1], meaning=row[2])
-                        all_concepts.append(concept)
-                    except ValidationError as e:
-                        print(f"Validation error for concept: {row} - {e}")
-    except psycopg.Error as e:
-        print(f"Database error during startup: {e}")
+    concepts_repository = ConceptsRepository(pool)
+    all_concepts = concepts_repository.get_concepts()
+
 
 # Call the loading function at startup
-with app.app_context():  # Use app context to access app config
+with app.app_context():
     load_concepts_at_startup()
+
 
 # --- Use the cached data ---
 def get_all_concepts() -> List[Concept]:
@@ -74,50 +64,12 @@ def get_all_concepts() -> List[Concept]:
     """
     return all_concepts
 
-def set_sid_conversation_id(sid_conversation_id: Conversation):
-    """
-    Inserts a sid_conversation_id record
-    """
-    try:
-        with get_db_connection() as conn:
-            with conn.cursor() as cur:
-                cur.execute(
-                    """
-                    INSERT INTO sid_conversation_ids (conversation_id, sid, "timestamp")
-                    VALUES (%s, %s, %s)
-                    ON CONFLICT (sid) DO UPDATE SET
-                        conversation_id = EXCLUDED.conversation_id,
-                        "timestamp" = EXCLUDED."timestamp";
-                    """,
-                    (
-                        str(sid_conversation_id.conversation_id),
-                        sid_conversation_id.sid,
-                        sid_conversation_id.timestamp  # Use the timestamp from the model
-                    )
-                )
-                conn.commit()
-    except psycopg.Error as e:
-        print(f"Database error: {e}")
-
-def set_message(message: Message):
-    """
-    Inserts a message record.
-    """
-    try:
-        with get_db_connection() as conn:
-            with conn.cursor() as cur:
-                cur.execute(
-                    "INSERT INTO messages (conversation_id, timestamp, message, role) VALUES (%s, %s, %s, %s)",
-                    (str(message.conversation_id), message.timestamp, message.message, message.role),
-                )
-                conn.commit()
-    except psycopg.Error as e:
-        print(f"Database error: {e}")
 
 @app.route('/')
 def index():
     """Serves the main HTML page."""
     return render_template('index.html')
+
 
 @socketio.on('connect')
 def test_connect():
@@ -126,14 +78,16 @@ def test_connect():
     session['sid'] = str(sid)
     print(f"Client connected: {sid}")
 
+
 @socketio.on('disconnect')
 def test_disconnect():
     """Handles WebSocket disconnections."""
     print(f"Client disconnected: {session['sid']}")
 
+
 def say_something(conversation_id: UUID, max_new_tokens: int = 128) -> Message:
-    repository = MessagesRepository(pool)
-    messages_from_db = repository.get_messages_of_conversation(conversation_id, False, None)
+    messages_repository = MessagesRepository(pool)
+    messages_from_db = messages_repository.get_messages_of_conversation(conversation_id, False, None)
 
     # Prepare chat history for the model
     # Map your application-specific roles to what the model/template expects (e.g., 'user', 'assistant')
@@ -235,7 +189,8 @@ def handle_message(json_data):
         return
 
     # Save user's message
-    set_message(Message(
+    repository = MessagesRepository(pool)
+    repository.set_message(Message(
         role='user',
         conversation_id=conversation_id,
         message=json_data['data'],
@@ -245,7 +200,7 @@ def handle_message(json_data):
     # Create a reply message
     reply_message = say_something(conversation_id)
 
-    set_message(reply_message)
+    repository.set_message(reply_message)
 
     # Emit the reply to the client
     emit('cheryl_replies', reply_message.model_dump(mode='json'))
@@ -263,8 +218,9 @@ def handle_authentication(json):
 
         conversation_id = UUID(conversation_id_str)
 
+        repository = ConversationsRepository(pool)
         # Associate sid with conversation_id
-        set_sid_conversation_id(Conversation(
+        repository.set_conversation(Conversation(
             sid=session['sid'],
             conversation_id=conversation_id,
             timestamp=datetime.datetime.now()
@@ -275,7 +231,8 @@ def handle_authentication(json):
 
         reply_message = say_something(conversation_id, 64)
 
-        set_message(reply_message)
+        messages_repository = MessagesRepository(pool)
+        messages_repository.set_message(reply_message)
 
         # Retrieve messages for this conversation
         repository = MessagesRepository(pool)

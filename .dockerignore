@@ -1,0 +1,6 @@
+.venv
+.env
+.envrc
+.ropeproject
+.gitignore
+README.md

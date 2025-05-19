@@ -66,10 +66,10 @@
                 console.log("Disconnected from server");
             });
 
-            const YOU = "You";
-            const CHERYL = "Cheryl";
+            const YOU = "user";
+            const CHERYL = "system";
             function formatReply(message) {
-                const sender = message.is_cheryl ? CHERYL : YOU;
+                const sender = (message.role = CHERYL ? "Cheryl" : "You");
                 return `<p>${sender}: ${message.message}</p>`;
             }
 

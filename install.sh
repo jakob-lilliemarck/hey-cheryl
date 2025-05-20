@@ -9,11 +9,13 @@ echo " IMPORTANT: Prerequisites"
 echo " 1. Installed 'git' on the system."
 echo " 2. Installed 'uv' for the 'root' user or globally."
 echo "    Example: curl -LsSf https://astral.sh/uv/install.sh | sh (as root)"
+echo " 3. Your domain 'hey-cheryl.se' DNS records point to this server's IP."
 echo "------------------------------------------------------------------"
 
 # --- Configuration ---
 INSTALL_DIR="/opt/hey-cheryl"
-REPO_URL="https://github.com/jakob-lilliemarck/hey-cheryl.git"
+REPO_URL="https://github.com/your-username/hey-cheryl.git" # <-- **UPDATE WITH YOUR REPO URL**
+# Domain is now hardcoded in deploy/nginx.conf
 
 # --- Check for Root Privileges & Prerequisites ---
 if [ "$EUID" -ne 0 ]; then
@@ -35,11 +37,8 @@ if [ -d "$INSTALL_DIR" ]; then
     cd "$INSTALL_DIR" || { echo "Failed to cd into ${INSTALL_DIR}"; exit 1; }
     if ! git pull origin main; then # Assuming 'main' is your default branch
         echo "Error: Failed to pull latest changes from repository."
-        # For robustness in an install/update script, exiting might be safer
         exit 1
     fi
-    # Ensure we are back in the original directory if other parts of script expect it, though cd $INSTALL_DIR later is fine.
-    # cd - > /dev/null # Go back to previous directory, suppress output
 else
     echo "Cloning repository into ${INSTALL_DIR}..."
     if ! git clone "$REPO_URL" "$INSTALL_DIR"; then
@@ -61,60 +60,112 @@ echo "Installing dependencies into .venv..."
   source .venv/bin/activate
   uv sync --locked
 )
-
 echo "Venv setup and dependency installation complete."
 
-# --- Install and Configure Systemd Service ---
-echo "Updating and configuring systemd service..."
+# --- Install and Configure Gunicorn Systemd Service ---
+echo "Updating and configuring Gunicorn systemd service..."
+GUNICORN_SERVICE_NAME="hey-cheryl.service"
+GUNICORN_SERVICE_SRC="${INSTALL_DIR}/deploy/${GUNICORN_SERVICE_NAME}"
+GUNICORN_SERVICE_DEST="/etc/systemd/system/${GUNICORN_SERVICE_NAME}"
 
-SERVICE_NAME="hey-cheryl.service"
-SERVICE_SRC="${INSTALL_DIR}/deploy/${SERVICE_NAME}"
-SERVICE_DEST="/etc/systemd/system/${SERVICE_NAME}"
+echo "Attempting to stop and disable ${GUNICORN_SERVICE_NAME}..."
+systemctl stop "${GUNICORN_SERVICE_NAME}" >/dev/null 2>&1 || true
+systemctl disable "${GUNICORN_SERVICE_NAME}" >/dev/null 2>&1 || true
 
-echo "Attempting to stop and disable ${SERVICE_NAME}..."
-systemctl stop "${SERVICE_NAME}" >/dev/null 2>&1 || true
-systemctl disable "${SERVICE_NAME}" >/dev/null 2>&1 || true
-
-if [ ! -f "$SERVICE_SRC" ]; then
-    echo "Error: Systemd service source file not found at ${SERVICE_SRC}"
+if [ ! -f "$GUNICORN_SERVICE_SRC" ]; then
+    echo "Error: Gunicorn service source file not found at ${GUNICORN_SERVICE_SRC}"
     exit 1
 fi
-
-echo "Copying updated service file to ${SERVICE_DEST}..."
-if ! cp "$SERVICE_SRC" "$SERVICE_DEST"; then
-    echo "Error: Failed to copy service file to ${SERVICE_DEST}"
+echo "Copying Gunicorn service file to ${GUNICORN_SERVICE_DEST}..."
+if ! cp "$GUNICORN_SERVICE_SRC" "$GUNICORN_SERVICE_DEST"; then
+    echo "Error: Failed to copy Gunicorn service file."
     exit 1
 fi
-
-echo "Configuring service file placeholders in ${SERVICE_DEST}..."
-if ! sed -i "s|__APP_DIR__|$INSTALL_DIR|g" "$SERVICE_DEST"; then
-    echo "Error substituting __APP_DIR__ in ${SERVICE_DEST}"
+echo "Configuring Gunicorn service file placeholders..."
+if ! sed -i "s|__APP_DIR__|$INSTALL_DIR|g" "$GUNICORN_SERVICE_DEST"; then
+    echo "Error substituting __APP_DIR__ in Gunicorn service file."
     exit 1
 fi
-
-echo "Reloading systemd daemon..."
-if ! systemctl daemon-reload; then
+echo "Reloading systemd daemon for Gunicorn service..."
+if ! systemctl daemon-reload; then # daemon-reload applies to all changed units
     echo "Error: Failed to reload systemd daemon."
     exit 1
 fi
+echo "Enabling ${GUNICORN_SERVICE_NAME}..."
+if ! systemctl enable "${GUNICORN_SERVICE_NAME}"; then
+    echo "Error: Failed to enable ${GUNICORN_SERVICE_NAME}."
+    exit 1
+fi
+echo "Starting ${GUNICORN_SERVICE_NAME}..."
+if ! systemctl start "${GUNICORN_SERVICE_NAME}"; then
+    echo "Error: Failed to start ${GUNICORN_SERVICE_NAME}."
+fi
+echo "Gunicorn systemd service setup complete."
 
-echo "Enabling ${SERVICE_NAME}..."
-if ! systemctl enable "${SERVICE_NAME}"; then
-    echo "Error: Failed to enable ${SERVICE_NAME}."
+# --- Install and Configure Nginx ---
+echo "Installing and configuring Nginx..."
+
+if ! command -v nginx &> /dev/null; then
+    echo "Nginx not found, installing..."
+    if ! dnf install -y nginx; then
+        echo "Error: Failed to install Nginx. Please install it manually."
+        exit 1
+    fi
+else
+    echo "Nginx is already installed."
+fi
+
+# Use a fixed Nginx conf name, or derive from domain if preferred
+NGINX_CONF_FILENAME="hey-cheryl.se.conf"
+NGINX_CONF_SRC="${INSTALL_DIR}/deploy/nginx.conf" # This is the template from the repo
+NGINX_CONF_DEST="/etc/nginx/conf.d/${NGINX_CONF_FILENAME}"
+
+if [ ! -f "$NGINX_CONF_SRC" ]; then
+    echo "Error: Nginx config source file not found at ${NGINX_CONF_SRC}"
     exit 1
 fi
 
-echo "Starting ${SERVICE_NAME}..."
-if ! systemctl start "${SERVICE_NAME}"; then
-    echo "Error: Failed to start ${SERVICE_NAME}."
-    echo "Please check service status and logs manually:"
-    echo "  sudo systemctl status ${SERVICE_NAME}"
-    echo "  sudo journalctl -u ${SERVICE_NAME} -f"
+echo "Copying Nginx configuration to ${NGINX_CONF_DEST}..."
+# This will overwrite the existing Nginx config for hey-cheryl.se if it exists
+if ! cp "$NGINX_CONF_SRC" "$NGINX_CONF_DEST"; then
+    echo "Error: Failed to copy Nginx configuration."
     exit 1
 fi
+
+# No sed substitution needed for domain as it's hardcoded in the template deploy/nginx.conf
+
+echo "Testing Nginx configuration..."
+if ! nginx -t; then
+    echo "Error: Nginx configuration test failed. Please check ${NGINX_CONF_DEST}"
+    exit 1
+fi
+
+echo "Reloading Nginx to apply changes..."
+if ! systemctl reload nginx; then
+    echo "Nginx reload failed, attempting restart..."
+    if ! systemctl restart nginx; then
+        echo "Error: Failed to reload or restart Nginx."
+        exit 1
+    fi
+fi
+
+if ! systemctl is-enabled --quiet nginx; then
+    echo "Enabling Nginx to start on boot..."
+    if ! systemctl enable nginx; then
+        echo "Warning: Failed to enable Nginx."
+    fi
+fi
+echo "Nginx setup complete."
 
 echo "------------------------------------------------------------------"
-echo "Installation complete. Systemd service ${SERVICE_NAME} should now be running as root."
-echo "Check status: sudo systemctl status ${SERVICE_NAME}"
-echo "View logs: sudo journalctl -u ${SERVICE_NAME} -f"
+echo "Installation complete."
+echo "Gunicorn service: sudo systemctl status ${GUNICORN_SERVICE_NAME}"
+echo "Nginx service: sudo systemctl status nginx"
+echo "Application should be accessible via HTTP at http://hey-cheryl.se"
+echo ""
+echo "Next steps for HTTPS:"
+echo "1. Ensure your domain 'hey-cheryl.se' DNS records point to this server's IP."
+echo "2. Install Certbot: sudo dnf install certbot python3-certbot-nginx"
+echo "3. Run Certbot: sudo certbot --nginx -d hey-cheryl.se -d www.hey-cheryl.se"
+echo "   Certbot will obtain SSL certificates and update Nginx configuration for HTTPS."
 echo "------------------------------------------------------------------"

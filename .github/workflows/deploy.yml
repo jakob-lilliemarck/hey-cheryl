@@ -1,0 +1,27 @@
+name: Deploy Application
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Set up SSH and run deployment commands
+      # This uses a third-party action to execute commands over SSH.
+      # Ensure you have added SSH_HOST, SSH_USERNAME, SSH_PRIVATE_KEY secrets
+      # and APP_DIR, GUNICORN_SERVICE_NAME variables to your GitHub repository.
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd ${{ vars.APP_DIR }}
+            git pull origin main
+            systemctl restart ${{ vars.GUNICORN_SERVICE_NAME }}
+            systemctl status ${{ vars.GUNICORN_SERVICE_NAME }}

@@ -13,7 +13,7 @@ echo "------------------------------------------------------------------"
 
 # --- Configuration ---
 INSTALL_DIR="/opt/hey-cheryl"
-REPO_URL="https://github.com/your-username/hey-cheryl.git" # <-- **UPDATE WITH YOUR REPO URL**
+REPO_URL="https://github.com/jakob-lilliemarck/hey-cheryl.git"
 
 # --- Check for Root Privileges & Prerequisites ---
 if [ "$EUID" -ne 0 ]; then

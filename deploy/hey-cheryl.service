@@ -6,7 +6,10 @@ After=network.target
 User=__RUN_USER__
 Group=__RUN_USER__
 WorkingDirectory=__APP_DIR__
-ExecStart=/bin/bash -c 'source __VENV_DIR__/activate && exec __VENV_DIR__/gunicorn --workers 1 --bind 0.0.0.0:5000 app:app'
+# Use /bin/bash -c to activate the venv and then execute gunicorn
+# This is more robust than relying solely on the PATH environment variable
+# Assuming venv is always in __APP_DIR__/.venv
+ExecStart=/bin/bash -c 'source __APP_DIR__/.venv/bin/activate && exec __APP_DIR__/.venv/bin/gunicorn --workers 1 --bind 0.0.0.0:5000 app:app'
 Restart=on-failure
 RestartSec=30
 StandardOutput=journal

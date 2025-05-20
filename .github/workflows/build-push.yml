@@ -16,20 +16,16 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Install doctl and Authenticate
+      - name: Install doctl
         uses: digitalocean/action-doctl@v2
         with:
           token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
 
-      - name: Authenticate Docker with DigitalOcean Registry
-        run: doctl registry login --expiry-seconds 600
+      - name: Build container image
+        run: docker build -t ${{ secrets.DIGITALOCEAN_REGISTRY_NAME }}:$(echo $GITHUB_SHA | head -c7) .
 
-      - name: Define Image Tag
-        id: meta
-        run: echo "TAG=${{ github.sha }}" >> $GITHUB_OUTPUT
+      - name: Log in to DigitalOcean Container Registry with short-lived credentials
+        run: doctl registry login --expiry-seconds 300
 
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v5
-        with:
-          push: true
-          tags: registry.digitalocean.com/${{ secrets.DIGITALOCEAN_REGISTRY_NAME }}/hey-cheryl:${{ steps.meta.outputs.TAG }}
+      - name: Push image to DigitalOcean Container Registry
+        run: docker push ${{ secrets.DIGITALOCEAN_REGISTRY_NAME }}:$(echo $GITHUB_SHA | head -c7)

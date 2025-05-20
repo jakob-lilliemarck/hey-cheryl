@@ -1,0 +1,17 @@
+[Unit]
+Description=Gunicorn server for Hey Cheryl application
+After=network.target
+
+[Service]
+User=__RUN_USER__
+Group=__RUN_USER__
+WorkingDirectory=__APP_DIR__
+Environment="PATH=__VENV_DIR__:$PATH"
+ExecStart=__VENV_DIR__/gunicorn --workers 1 --bind 0.0.0.0:5000 app:app
+Restart=on-failure
+RestartSec=30
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

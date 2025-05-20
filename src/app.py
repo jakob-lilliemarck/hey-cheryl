@@ -1,10 +1,8 @@
 from flask import Flask, render_template, request, session
 from flask_socketio import SocketIO, emit
-from pydantic import ValidationError
 from typing import List
 from uuid import UUID, uuid4
 import datetime
-import psycopg
 from psycopg_pool import ConnectionPool
 from src.models.message import Message
 from src.models.concept import Concept
@@ -27,6 +25,8 @@ USER = 'user'
 
 
 tokenizer = AutoTokenizer.from_pretrained(config.MODEL_NAME)
+print(f"Tokenizer type: {type(tokenizer)}")
+
 model = AutoModelForCausalLM.from_pretrained(config.MODEL_NAME)
 
 
@@ -93,7 +93,7 @@ def say_something(conversation_id: UUID, max_new_tokens: int = 128) -> Message:
     # Map your application-specific roles to what the model/template expects (e.g., 'user', 'assistant')
     chat_history_for_model = [{
         'role': SYSTEM,
-        'content': "Your name is Cheryl. You are not an AI assistant but a passionate human professor of aesthics and form at an arts university. You teach sculptural principles, how to model three dimensional form and how to give shape to physical products. You love working with clay. You are smart, quirky and a little bit insensitive altough you always have good intentions. Keep responses brief and fun."
+        'content': ""
     }]
     for m in messages_from_db:
         role_for_model = 'assistant' if m.role == ASSISTANT else m.role

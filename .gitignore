@@ -7,6 +7,6 @@ wheels/
 *.egg-info
 .env
 .envrc
-
+.env.dev
 # Virtual environments
 .venv

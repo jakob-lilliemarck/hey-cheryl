@@ -29,11 +29,19 @@ if ! command -v uv &> /dev/null; then
     exit 1
 fi
 
-# --- Clone Repository ---
-echo "Cloning repository into ${INSTALL_DIR}..."
+# --- Clone or Update Repository ---
 if [ -d "$INSTALL_DIR" ]; then
-    echo "Installation directory ${INSTALL_DIR} already exists. Assuming it's the correct repo."
+    echo "Installation directory ${INSTALL_DIR} already exists. Pulling latest changes..."
+    cd "$INSTALL_DIR" || { echo "Failed to cd into ${INSTALL_DIR}"; exit 1; }
+    if ! git pull origin main; then # Assuming 'main' is your default branch
+        echo "Error: Failed to pull latest changes from repository."
+        # For robustness in an install/update script, exiting might be safer
+        exit 1
+    fi
+    # Ensure we are back in the original directory if other parts of script expect it, though cd $INSTALL_DIR later is fine.
+    # cd - > /dev/null # Go back to previous directory, suppress output
 else
+    echo "Cloning repository into ${INSTALL_DIR}..."
     if ! git clone "$REPO_URL" "$INSTALL_DIR"; then
         echo "Error: Failed to clone repository from ${REPO_URL}"
         exit 1
@@ -42,7 +50,7 @@ fi
 
 # --- Set up Virtual Environment and Install Dependencies (as root) ---
 echo "Setting up venv and installing dependencies in ${INSTALL_DIR}..."
-cd "$INSTALL_DIR" || exit 1
+cd "$INSTALL_DIR" || { echo "Failed to cd into ${INSTALL_DIR} after clone/pull"; exit 1; }
 
 echo "Creating/updating virtual environment..."
 uv venv .venv # uv venv is idempotent

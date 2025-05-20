@@ -3,10 +3,9 @@ Description=Gunicorn server for Hey Cheryl application
 After=network.target
 
 [Service]
-User=root
-Group=root
+#User=root
+#Group=root
 WorkingDirectory=__APP_DIR__
-# Use /bin/bash -c to activate the venv and then execute gunicorn
 ExecStart=/bin/bash -c 'source __APP_DIR__/.venv/bin/activate && exec __APP_DIR__/.venv/bin/gunicorn --workers 1 --bind 0.0.0.0:5000 app:app'
 Restart=on-failure
 RestartSec=30

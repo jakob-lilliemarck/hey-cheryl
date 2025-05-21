@@ -10,3 +10,4 @@ wheels/
 .env.dev
 # Virtual environments
 .venv
+.notes

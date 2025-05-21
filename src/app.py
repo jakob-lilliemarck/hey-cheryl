@@ -82,6 +82,9 @@ def test_connect():
     sid = uuid4()
     session['sid'] = str(sid)
     print(f"Client connected: {sid}")
+    # Generate a conversation_id that the client _may use_ if they do not already have one configured.
+    conversation_id = uuid4()
+    emit('conversation_id_provisioned', {'conversation_id': str(conversation_id) })
 
 
 @socketio.on('disconnect')
@@ -220,6 +223,8 @@ def handle_authentication(json):
         if not conversation_id_str:
             emit('authentication_failed', {'error': 'conversation_id missing'})
             return
+
+        print(conversation_id_str)
 
         conversation_id = UUID(conversation_id_str)
 

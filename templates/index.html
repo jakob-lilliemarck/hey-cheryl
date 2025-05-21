@@ -57,8 +57,6 @@
             var messageInput = document.getElementById("messageInput");
 
             socket.on("connect", function () {
-                conversation_id = getConversationID();
-                socket.emit("authenticate", { conversation_id });
                 console.log("Connected to server");
             });
 
@@ -72,6 +70,20 @@
                 const sender = (message.role = CHERYL ? "Cheryl" : "You");
                 return `<p>${sender}: ${message.message}</p>`;
             }
+
+            socket.on("conversation_id_provisioned", function (data) {
+                conversationID = setConversationID(data.conversation_id);
+
+                // NOTE: for persisted conversations the block below may be uncommented
+                // let conversationID = getConversationID();
+                // if (!conversationID) {
+                //     conversationID = setConversationID(data.conversation_id);
+                // }
+
+                socket.emit("authenticate", {
+                    conversation_id: conversationID,
+                });
+            });
 
             socket.on("cheryl_replies", function (message) {
                 messages.innerHTML += formatReply(message);
@@ -93,11 +105,15 @@
             });
 
             const CONVERSATION_ID_KEY = "conversationID";
+            function setConversationID(conversationID) {
+                localStorage.setItem(CONVERSATION_ID_KEY, conversationID);
+                return conversationID;
+            }
+
             function getConversationID() {
                 let conversationID = localStorage.getItem(CONVERSATION_ID_KEY);
                 if (conversationID == null) {
-                    conversationID = crypto.randomUUID();
-                    localStorage.setItem(CONVERSATION_ID_KEY, conversationID);
+                    throw new Error("Could not find any conversationID!");
                 }
                 return conversationID;
             }

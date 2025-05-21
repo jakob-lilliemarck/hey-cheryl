@@ -19,16 +19,21 @@ from transformers.models.auto.tokenization_auto import AutoTokenizer
 from transformers.models.auto.modeling_auto import AutoModelForCausalLM
 import torch
 from psycopg.rows import TupleRow
+import logging
 
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 ASSISTANT = 'assistant'
 SYSTEM = 'system'
 USER = 'user'
 
-
+logging.info(f"Starting to load Hugging Face tokenizer: {config.MODEL_NAME}")
 tokenizer = AutoTokenizer.from_pretrained(config.MODEL_NAME)
-model = AutoModelForCausalLM.from_pretrained(config.MODEL_NAME)
+logging.info(f"Hugging Face tokenizer '{config.MODEL_NAME}' loaded successfully.")
 
+logging.info(f"Starting to load Hugging Face model: {config.MODEL_NAME}. This may take a while...")
+model = AutoModelForCausalLM.from_pretrained(config.MODEL_NAME)
+logging.info(f"Hugging Face model '{config.MODEL_NAME}' loaded successfully and is available.")
 
 app = Flask(__name__, template_folder='../templates')
 app.config['SECRET_KEY'] = config.SECRET_KEY

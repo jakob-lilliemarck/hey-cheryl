@@ -1,1 +1,0 @@
-from .cheryl import Cheryl

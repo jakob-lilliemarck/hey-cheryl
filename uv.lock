@@ -172,6 +172,7 @@ dependencies = [
     { name = "flask-socketio" },
     { name = "gunicorn" },
     { name = "hf-xet" },
+    { name = "mong" },
     { name = "psycopg" },
     { name = "psycopg-pool" },
     { name = "pydantic" },
@@ -185,6 +186,7 @@ requires-dist = [
     { name = "flask-socketio", specifier = ">=5.5.1" },
     { name = "gunicorn", specifier = ">=23.0.0" },
     { name = "hf-xet", specifier = ">=1.1.2" },
+    { name = "mong", specifier = ">=0.0.3" },
     { name = "psycopg", specifier = ">=3.2.9" },
     { name = "psycopg-pool", specifier = ">=3.2.6" },
     { name = "pydantic", specifier = ">=2.11.4" },
@@ -291,6 +293,15 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/0d/80/0985960e4b89922cb5a0bac0ed39c5b96cbc1a536a99f30e8c220a996ed9/MarkupSafe-3.0.2-cp313-cp313t-musllinux_1_2_x86_64.whl", hash = "sha256:131a3c7689c85f5ad20f9f6fb1b866f402c445b220c19fe4308c0b147ccd2ad9", size = 24098, upload-time = "2024-10-18T15:21:40.813Z" },
     { url = "https://files.pythonhosted.org/packages/82/78/fedb03c7d5380df2427038ec8d973587e90561b2d90cd472ce9254cf348b/MarkupSafe-3.0.2-cp313-cp313t-win32.whl", hash = "sha256:ba8062ed2cf21c07a9e295d5b8a2a5ce678b913b45fdf68c32d95d6c1291e0b6", size = 15208, upload-time = "2024-10-18T15:21:41.814Z" },
     { url = "https://files.pythonhosted.org/packages/4f/65/6079a46068dfceaeabb5dcad6d674f5f5c61a6fa5673746f42a9f4c233b3/MarkupSafe-3.0.2-cp313-cp313t-win_amd64.whl", hash = "sha256:e444a31f8db13eb18ada366ab3cf45fd4b31e4db1236a4448f68778c1d1a5a2f", size = 15739, upload-time = "2024-10-18T15:21:42.784Z" },
+]
+
+[[package]]
+name = "mong"
+version = "0.0.3"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/d3/5d/d472eaf8d11b21fe1463221c301df7a8a75dfc88c52f969421a6ee50cdfd/mong-0.0.3.tar.gz", hash = "sha256:c4db37f52b671cd5ff1e6527241bbbfd1d39d7cffa6e014d6dca932effb3986b", size = 6776, upload-time = "2025-03-01T07:15:54.052Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/fe/be/4573b98b043925dfe3885c3b86c250a94b82f7e8a66b7610c0db47731758/mong-0.0.3-py3-none-any.whl", hash = "sha256:058d0879c3359273363dd0594e3a61bad2759f6d4977324993762d4efe41fd81", size = 6485, upload-time = "2025-03-01T07:15:52.012Z" },
 ]
 
 [[package]]

@@ -1,6 +1,6 @@
 from psycopg_pool import ConnectionPool
 import psycopg
-from src.models.concept import Concept
+from src.models import Concept
 from pydantic import ValidationError
 from psycopg.rows import TupleRow
 

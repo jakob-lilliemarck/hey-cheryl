@@ -52,59 +52,21 @@
         <div id="messages"></div>
         <input type="text" id="messageInput" placeholder="Ask Cheryl" />
         <script>
-            var socket = io(); // Connect to the Socket.IO server
+            // Contants
+            const ROLE_USER = "user";
+            const ROLE_CHRYEL = "system";
+            const CONVERSATION_ID_KEY = "conversationID";
+
+            // Variables
             var messages = document.getElementById("messages");
             var messageInput = document.getElementById("messageInput");
-
-            socket.on("connect", function () {
-                console.log("Connected to server");
+            var socket = io({
+                query: {
+                    user_id: getConversationID(),
+                },
             });
 
-            socket.on("disconnect", function () {
-                console.log("Disconnected from server");
-            });
-
-            const YOU = "user";
-            const CHERYL = "system";
-            function formatReply(message) {
-                const sender = (message.role = CHERYL ? "Cheryl" : "You");
-                return `<p>${sender}: ${message.message}</p>`;
-            }
-
-            socket.on("conversation_id_provisioned", function (data) {
-                conversationID = setConversationID(data.conversation_id);
-
-                // NOTE: for persisted conversations the block below may be uncommented
-                // let conversationID = getConversationID();
-                // if (!conversationID) {
-                //     conversationID = setConversationID(data.conversation_id);
-                // }
-
-                socket.emit("authenticate", {
-                    conversation_id: conversationID,
-                });
-            });
-
-            socket.on("cheryl_replies", function (message) {
-                messages.innerHTML += formatReply(message);
-                messages.scrollTop = messages.scrollHeight;
-            });
-
-            socket.on("authentication_successful", function (data) {
-                for (message of data.messages) {
-                    messages.innerHTML += formatReply(message);
-                }
-                messages.scrollTop = messages.scrollHeight;
-            });
-
-            messageInput.addEventListener("keypress", function (event) {
-                if (event.key === "Enter") {
-                    event.preventDefault();
-                    sendMessage();
-                }
-            });
-
-            const CONVERSATION_ID_KEY = "conversationID";
+            // Functions
             function setConversationID(conversationID) {
                 localStorage.setItem(CONVERSATION_ID_KEY, conversationID);
                 return conversationID;
@@ -113,7 +75,7 @@
             function getConversationID() {
                 let conversationID = localStorage.getItem(CONVERSATION_ID_KEY);
                 if (conversationID == null) {
-                    throw new Error("Could not find any conversationID!");
+                    setConversationID(crypto.randomUUID());
                 }
                 return conversationID;
             }
@@ -121,14 +83,50 @@
             function sendMessage() {
                 const conversationID = getConversationID();
                 var message = messageInput.value;
+
                 socket.emit("new_message", {
                     data: message,
                     conversation_id: conversationID,
-                }); // Send a message to the server
+                });
+
                 messages.innerHTML += "<p>You: " + message + "</p>";
                 messageInput.value = ""; // Clear the input field
                 messages.scrollTop = messages.scrollHeight; // Scroll to the bottom
             }
+
+            function formatReply(message) {
+                const sender = (message.role = CHERYL ? "Cheryl" : "You");
+                return `<p>${sender}: ${message.message}</p>`;
+            }
+
+            // DOM event handlers
+            messageInput.addEventListener("keypress", function (event) {
+                if (event.key === "Enter") {
+                    event.preventDefault();
+                    sendMessage();
+                }
+            });
+
+            // Socket event handlers
+            socket.on("connect", function () {
+                console.log("Connected to server. Socket ID:", socket.id);
+            });
+            socket.on("user_connected", function (user) {
+                console.log("Connected to server. Socket ID:", user);
+            });
+
+            socket.on("user_connected", function (user) {
+                console.log();
+            });
+
+            socket.on("message", function (message) {
+                messages.innerHTML += formatReply(message);
+                messages.scrollTop = messages.scrollHeight;
+            });
+
+            socket.on("disconnect", function () {
+                console.log("Disconnected from server");
+            });
         </script>
     </body>
 </html>

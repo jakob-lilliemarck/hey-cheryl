@@ -18,30 +18,10 @@ SET default_table_access_method = heap;
 --
 
 CREATE TABLE public.concepts (
-    id integer NOT NULL,
+    id uuid NOT NULL,
     concept text NOT NULL,
     meaning text NOT NULL
 );
-
-
---
--- Name: concepts_id_seq; Type: SEQUENCE; Schema: public; Owner: -
---
-
-CREATE SEQUENCE public.concepts_id_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
---
--- Name: concepts_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
---
-
-ALTER SEQUENCE public.concepts_id_seq OWNED BY public.concepts.id;
 
 
 --
@@ -49,32 +29,13 @@ ALTER SEQUENCE public.concepts_id_seq OWNED BY public.concepts.id;
 --
 
 CREATE TABLE public.messages (
-    id integer NOT NULL,
+    id uuid NOT NULL,
     conversation_id uuid NOT NULL,
+    user_id uuid NOT NULL,
     role text NOT NULL,
     "timestamp" timestamp with time zone NOT NULL,
     message text NOT NULL
 );
-
-
---
--- Name: messages_id_seq; Type: SEQUENCE; Schema: public; Owner: -
---
-
-CREATE SEQUENCE public.messages_id_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
---
--- Name: messages_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
---
-
-ALTER SEQUENCE public.messages_id_seq OWNED BY public.messages.id;
 
 
 --
@@ -87,28 +48,25 @@ CREATE TABLE public.schema_migrations (
 
 
 --
--- Name: sid_conversation_ids; Type: TABLE; Schema: public; Owner: -
+-- Name: user_sessions; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.sid_conversation_ids (
-    sid uuid NOT NULL,
-    conversation_id uuid NOT NULL,
+CREATE TABLE public.user_sessions (
+    id uuid NOT NULL,
+    user_id uuid NOT NULL,
     "timestamp" timestamp with time zone NOT NULL
 );
 
 
 --
--- Name: concepts id; Type: DEFAULT; Schema: public; Owner: -
+-- Name: users; Type: TABLE; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.concepts ALTER COLUMN id SET DEFAULT nextval('public.concepts_id_seq'::regclass);
-
-
---
--- Name: messages id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.messages ALTER COLUMN id SET DEFAULT nextval('public.messages_id_seq'::regclass);
+CREATE TABLE public.users (
+    id uuid NOT NULL,
+    name text NOT NULL,
+    "timestamp" timestamp with time zone NOT NULL
+);
 
 
 --
@@ -136,25 +94,42 @@ ALTER TABLE ONLY public.schema_migrations
 
 
 --
--- Name: sid_conversation_ids sid_conversation_ids_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: user_sessions user_sessions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.sid_conversation_ids
-    ADD CONSTRAINT sid_conversation_ids_pkey PRIMARY KEY (sid);
-
-
---
--- Name: idx_messages_conversation_id_timestamp; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_messages_conversation_id_timestamp ON public.messages USING btree (conversation_id, "timestamp");
+ALTER TABLE ONLY public.user_sessions
+    ADD CONSTRAINT user_sessions_pkey PRIMARY KEY (id);
 
 
 --
--- Name: idx_sid_conversation_ids_sid; Type: INDEX; Schema: public; Owner: -
+-- Name: users users_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_sid_conversation_ids_sid ON public.sid_conversation_ids USING btree (sid);
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: idx_user_sessions_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_user_sessions_user_id ON public.user_sessions USING btree (user_id);
+
+
+--
+-- Name: messages messages_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.messages
+    ADD CONSTRAINT messages_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id);
+
+
+--
+-- Name: user_sessions user_sessions_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.user_sessions
+    ADD CONSTRAINT user_sessions_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id);
 
 
 --
@@ -167,6 +142,4 @@ CREATE INDEX idx_sid_conversation_ids_sid ON public.sid_conversation_ids USING b
 --
 
 INSERT INTO public.schema_migrations (version) VALUES
-    ('20250518131704'),
-    ('20250518131708'),
-    ('20250518181644');
+    ('20250525155138');

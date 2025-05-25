@@ -2,7 +2,7 @@ from psycopg_pool import ConnectionPool
 from uuid import UUID
 from typing import Optional
 import psycopg
-from src.models.message import Message
+from src.models import Message
 from pydantic import ValidationError
 from datetime import datetime
 from psycopg.rows import TupleRow

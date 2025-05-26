@@ -11,6 +11,7 @@ class UserSession(BaseModel):
     id: UUID
     user_id: UUID
     timestamp: datetime
+    event: str
 
 class Message(BaseModel):
     id: UUID
@@ -18,6 +19,13 @@ class Message(BaseModel):
     user_id: UUID
     role: str
     timestamp: datetime
+    message: str
+
+class Reply(BaseModel):
+    id: UUID
+    timestamp: datetime
+    message_id: UUID
+    acknowledged: bool
     message: str
 
 class Concept(BaseModel):

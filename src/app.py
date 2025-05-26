@@ -1,3 +1,6 @@
+from src.repositories.messages import MessageInsertionError
+from src.repositories.users import UserSessionInsertionError
+from src.repositories.users import UserSessionNotFoundError
 from flask import Flask, render_template, session, request, current_app
 from flask_socketio import SocketIO, emit
 from src.config.config import Config
@@ -14,6 +17,7 @@ from src.repositories.concepts import ConceptsRepository
 from src.repositories.messages import MessagesRepository
 from src.repositories.users import UserNotFoundError, UsersRepository
 import typing
+from src.services.cheryl import Cheryl
 from uuid import UUID
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -23,6 +27,7 @@ class MyApp(Flask):
     users_repository: UsersRepository
     messages_repository: MessagesRepository
     concepts_repository: ConceptsRepository
+    assistant_service: Cheryl
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -40,16 +45,37 @@ pool = ConnectionPool(
 app.users_repository = UsersRepository(pool)
 app.messages_repository = MessagesRepository(pool)
 app.concepts_repository = ConceptsRepository(pool)
-
+app.assistant_service = Cheryl(
+    user_id=config.ASSISTANT_USER_ID,
+    session_id=config.ASSISTANT_SESSION_ID,
+    conversation_id=config.CONVERSATION_ID,
+    messages_repository=app.messages_repository,
+    concepts_repository=app.concepts_repository,
+    users_repository=app.users_repository,
+)
 socketio = SocketIO(app)
-
 
 USER = 'user'
 
 @app.route('/')
 def index():
     """Serves the main HTML page."""
-    return render_template('index.html')
+    messages = app.messages_repository.get_messages(conversation_id=config.CONVERSATION_ID)
+    user_ids_of_conversation = app.messages_repository.get_user_ids_of_conversation(conversation_id=config.CONVERSATION_ID)
+    user_ids = app.users_repository.get_connected_user_ids()
+    users = app.users_repository.get_users_by_id(user_ids_of_conversation)
+
+    initial_messages = [msg.model_dump(mode='json') for msg in messages]
+    initial_connected_user_ids = [str(id) for id in user_ids]
+    initial_users_of_conversation = [u.model_dump(mode='json') for u in users]
+
+    return render_template(
+        'index.html',
+        initial_messages=initial_messages,
+        initial_connected_user_ids=initial_connected_user_ids,
+        initial_users_of_conversation=initial_users_of_conversation
+    )
+
 
 @socketio.on('connect')
 def on_connect():
@@ -74,51 +100,82 @@ def on_connect():
         user = app.users_repository.get_user(user_id)
     except UserNotFoundError:
         user = app.users_repository.create_user(User(
-            id=uuid4(),
+            id=user_id,
             name=mong.get_random_name(),
             timestamp=timestamp
         ))
         if not user:
             logging.error("Could not create user")
-            emit("user_creation_error", user_id)
             return
 
     try:
         app.users_repository.create_user_session(UserSession(
             id=sid,
             user_id=user.id,
-            timestamp=timestamp
+            timestamp=timestamp,
+            event="connected"
         ))
-    except:
+    except UserSessionInsertionError:
         logging.error("Could not create user session")
-        emit("user_creation_error", user_id)
         return
 
     emit("user_connected", user.model_dump(mode='json'))
+
+@socketio.on('user_authored_message')
+def on_message(user_authored_message):
+    """Handles incoming WebSocket messages and sends a response."""
+    app = typing.cast(MyApp, current_app)
+
+    try:
+        message = app.messages_repository.create_message(Message(
+            id=uuid4(),
+            user_id=user_authored_message['user_id'],
+            role=USER,
+            conversation_id=config.CONVERSATION_ID,
+            message=user_authored_message['body'],
+            timestamp=datetime.now(timezone.utc)
+        ))
+    except MessageInsertionError:
+        logging.error("The message could not be created")
+        return
+
+
+    emit('message_created', message.model_dump(mode='json'))
+
+    # Start a background task to generate and emit the reply
+    socketio.start_background_task(generate_and_emit_reply, message)
+
+def generate_and_emit_reply(message):
+    """Generates the assistant's reply and emits it back to the client."""
+    # Establish the application context for this thread
+    with app.app_context():
+        reply = app.assistant_service.ask_to_reply(message)
+        logging.info(f"reply: {reply}")
+        # FIXME: DOES NOT WORK!!!
+        # Emit the message specifically to the client using their SID
+        # emit('message_created', reply.model_dump(mode='json'))
+
 
 
 @socketio.on('disconnect')
 def on_disconnect():
     """Handles WebSocket disconnections."""
-    sid = request.args.get('user_id')
-    print(f"Client disconnected: {sid}")
+    try:
+        user_session = app.users_repository.get_user_session(session['sid'])
+    except UserSessionNotFoundError:
+        logging.error("The user session could not be found")
+        return
 
-
-@socketio.on('new_message')
-def on_message(json_data):
-    """Handles incoming WebSocket messages and sends a response."""
-
-    message = Message(
-        id=uuid4(),
-        user_id=uuid4(), # FIXME
-        role=USER,
-        conversation_id=config.CONVERSATION_ID,
-        message="Mocked message",
-        timestamp=datetime.now(timezone.utc)
-    )
-
-    emit('message', message.model_dump(mode='json'))
-
+    try:
+        app.users_repository.create_user_session(UserSession(
+            id=user_session.id,
+            user_id=user_session.user_id,
+            timestamp=datetime.now(timezone.utc),
+            event="disconnected"
+        ))
+    except UserSessionInsertionError:
+        logging.error("Could not create a user session event with the database")
+        return
 
 if __name__ == '__main__':
     socketio.run(app, debug=True) # Set debug=False for production

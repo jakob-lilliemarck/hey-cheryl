@@ -11,6 +11,8 @@ class Config:
     MODEL_NAME: str
     DEVICE: str
     CONVERSATION_ID: UUID
+    ASSISTANT_USER_ID: UUID
+    ASSISTANT_SESSION_ID: UUID
 
     def __init__(
         self,
@@ -20,7 +22,9 @@ class Config:
         session_type: str,
         model_name: str,
         device: str,
-        conversation_id: UUID
+        conversation_id: UUID,
+        assistant_user_id: UUID,
+        assistant_session_id: UUID
     ):
         """Loads configuration from environment variables."""
         self.DATABASE_URL = database_url
@@ -29,6 +33,8 @@ class Config:
         self.MODEL_NAME = model_name
         self.DEVICE = device
         self.CONVERSATION_ID = conversation_id
+        self.ASSISTANT_SESSION_ID = assistant_session_id
+        self.ASSISTANT_USER_ID = assistant_user_id
 
     @staticmethod
     def new_from_env():
@@ -39,6 +45,8 @@ class Config:
         model_name = Config._get_required_env_var("MODEL_ID")
         device = Config._get_required_env_var("DEVICE")
         conversation_id = Config._get_required_env_var("CONVERSATION_ID")
+        assistant_user_id = Config._get_required_env_var("ASSISTANT_USER_ID")
+        assistant_session_id = Config._get_required_env_var("ASSISTANT_SESSION_ID")
 
         return Config(
             database_url=database_url,
@@ -46,7 +54,9 @@ class Config:
             session_type=session_type,
             model_name=model_name,
             device=device,
-            conversation_id=UUID(conversation_id)
+            conversation_id=UUID(conversation_id),
+            assistant_session_id=UUID(assistant_session_id),
+            assistant_user_id=UUID(assistant_user_id)
         )
 
     @staticmethod

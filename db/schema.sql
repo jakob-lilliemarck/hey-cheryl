@@ -25,6 +25,58 @@ CREATE TABLE public.concepts (
 
 
 --
+-- Name: replies; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.replies (
+    id uuid NOT NULL,
+    "timestamp" timestamp with time zone NOT NULL,
+    message_id uuid NOT NULL,
+    acknowledged boolean NOT NULL,
+    message text
+);
+
+
+--
+-- Name: latest_replies; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW public.latest_replies AS
+ SELECT DISTINCT ON (id) id,
+    "timestamp",
+    message_id,
+    acknowledged,
+    message
+   FROM public.replies
+  ORDER BY id, "timestamp" DESC;
+
+
+--
+-- Name: user_sessions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.user_sessions (
+    id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    "timestamp" timestamp with time zone NOT NULL,
+    event text NOT NULL
+);
+
+
+--
+-- Name: latest_user_sessions; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW public.latest_user_sessions AS
+ SELECT DISTINCT ON (id) id,
+    user_id,
+    "timestamp",
+    event
+   FROM public.user_sessions
+  ORDER BY id, "timestamp" DESC;
+
+
+--
 -- Name: messages; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -44,17 +96,6 @@ CREATE TABLE public.messages (
 
 CREATE TABLE public.schema_migrations (
     version character varying NOT NULL
-);
-
-
---
--- Name: user_sessions; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.user_sessions (
-    id uuid NOT NULL,
-    user_id uuid NOT NULL,
-    "timestamp" timestamp with time zone NOT NULL
 );
 
 
@@ -86,6 +127,14 @@ ALTER TABLE ONLY public.messages
 
 
 --
+-- Name: replies replies_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.replies
+    ADD CONSTRAINT replies_pkey PRIMARY KEY (id, "timestamp");
+
+
+--
 -- Name: schema_migrations schema_migrations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -98,7 +147,7 @@ ALTER TABLE ONLY public.schema_migrations
 --
 
 ALTER TABLE ONLY public.user_sessions
-    ADD CONSTRAINT user_sessions_pkey PRIMARY KEY (id);
+    ADD CONSTRAINT user_sessions_pkey PRIMARY KEY (id, "timestamp");
 
 
 --
@@ -107,6 +156,13 @@ ALTER TABLE ONLY public.user_sessions
 
 ALTER TABLE ONLY public.users
     ADD CONSTRAINT users_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: idx_user_sessions_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_user_sessions_id ON public.user_sessions USING btree (id);
 
 
 --
@@ -122,6 +178,14 @@ CREATE INDEX idx_user_sessions_user_id ON public.user_sessions USING btree (user
 
 ALTER TABLE ONLY public.messages
     ADD CONSTRAINT messages_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id);
+
+
+--
+-- Name: replies replies_message_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.replies
+    ADD CONSTRAINT replies_message_id_fkey FOREIGN KEY (message_id) REFERENCES public.messages(id);
 
 
 --

@@ -54,49 +54,115 @@
         <script>
             // Contants
             const ROLE_USER = "user";
-            const ROLE_CHRYEL = "system";
-            const CONVERSATION_ID_KEY = "conversationID";
+            const ROLE_ASSISTANT = "assistant";
+            const CLIENT_ID_KEY = "clientID";
+            const KEY_USER_NAME = "userName";
+
+            // State
+            const users = {};
+            const connectedUsersIDs = {};
+
+            // Must be single qouted
+            // prettier-ignore
+            const initialMessages = JSON.parse('{{ initial_messages | tojson | safe }}');
+
+            // Must be single qouted
+            // prettier-ignore
+            const initialConnectedUserIDs = JSON.parse('{{ initial_connected_user_ids | tojson | safe }}')
+            for (const id of initialConnectedUserIDs) {
+                connectedUsersIDs[id] = true;
+            }
+
+            // Must be single qouted
+            // prettier-ignore
+            const initialUsersOfConversation = JSON.parse('{{ initial_users_of_conversation | tojson | safe }}')
+            for (const user of initialUsersOfConversation) {
+                users[user.id] = user;
+            }
 
             // Variables
             var messages = document.getElementById("messages");
             var messageInput = document.getElementById("messageInput");
             var socket = io({
                 query: {
-                    user_id: getConversationID(),
+                    user_id: getClientID(),
                 },
             });
 
             // Functions
-            function setConversationID(conversationID) {
-                localStorage.setItem(CONVERSATION_ID_KEY, conversationID);
-                return conversationID;
+            function setClientID(clientID) {
+                localStorage.setItem(CLIENT_ID_KEY, clientID);
+                return clientID;
             }
 
-            function getConversationID() {
-                let conversationID = localStorage.getItem(CONVERSATION_ID_KEY);
-                if (conversationID == null) {
-                    setConversationID(crypto.randomUUID());
+            function getClientID() {
+                let clientID = localStorage.getItem(CLIENT_ID_KEY);
+                if (clientID == null) {
+                    setClientID(crypto.randomUUID());
                 }
-                return conversationID;
+                return clientID;
+            }
+
+            function getUserName(userID) {
+                console.log("getUserName", { userID, users });
+                let user = users[userID];
+                if (user == null) {
+                    console.log("user not found");
+                    return "unknown";
+                }
+                console.log("user name", { name: user.name });
+                return user.name;
             }
 
             function sendMessage() {
-                const conversationID = getConversationID();
-                var message = messageInput.value;
+                const clientID = getClientID();
+                const body = messageInput.value;
 
-                socket.emit("new_message", {
-                    data: message,
-                    conversation_id: conversationID,
+                socket.emit("user_authored_message", {
+                    user_id: clientID,
+                    body: body,
                 });
 
-                messages.innerHTML += "<p>You: " + message + "</p>";
-                messageInput.value = ""; // Clear the input field
-                messages.scrollTop = messages.scrollHeight; // Scroll to the bottom
+                messageInput.value = "";
             }
 
-            function formatReply(message) {
-                const sender = (message.role = CHERYL ? "Cheryl" : "You");
-                return `<p>${sender}: ${message.message}</p>`;
+            function createMessageElement(message) {
+                console.log("message", message);
+                const messageClass =
+                    message.role == ROLE_ASSISTANT
+                        ? "assistant"
+                        : message.user_id == getClientID()
+                          ? "current-user"
+                          : "other-user";
+
+                // Create the body element
+                const bodyEl = document.createElement("p");
+                bodyEl.innerHTML += message.message;
+                bodyEl.classList.add("body");
+
+                // Create the sender element
+                const senderEl = document.createElement("div");
+                senderEl.innerHTML += getUserName(message.user_id);
+                senderEl.classList.add("sender");
+
+                // Create the message element
+                const messageEl = document.createElement("div");
+                messageEl.appendChild(senderEl);
+                messageEl.appendChild(bodyEl);
+                messageEl.classList.add("message", messageClass);
+
+                return messageEl;
+            }
+
+            function appendMessages(...msgs) {
+                const fragment = new DocumentFragment();
+                msgs.forEach((message) => {
+                    const element = createMessageElement(message);
+                    fragment.appendChild(element);
+                });
+
+                messages.appendChild(fragment);
+                messages.scrollTop = messages.scrollHeight;
             }
 
             // DOM event handlers
@@ -107,21 +173,45 @@
                 }
             });
 
+            document.addEventListener("DOMContentLoaded", (event) => {
+                appendMessages(...initialMessages);
+            });
+
             // Socket event handlers
             socket.on("connect", function () {
-                console.log("Connected to server. Socket ID:", socket.id);
-            });
-            socket.on("user_connected", function (user) {
-                console.log("Connected to server. Socket ID:", user);
-            });
-
-            socket.on("user_connected", function (user) {
-                console.log();
+                console.group("Connected to server");
+                console.log({
+                    socketID: socket.id,
+                    userID: getClientID(),
+                });
+                console.groupEnd();
             });
 
-            socket.on("message", function (message) {
-                messages.innerHTML += formatReply(message);
-                messages.scrollTop = messages.scrollHeight;
+            socket.on("user_connected", function (user) {
+                console.group("User connected");
+                console.log(user);
+
+                connectedUsersIDs[user.id] = true;
+
+                console.groupEnd();
+            });
+
+            socket.on("user_disconnected", function (user) {
+                console.group("User dicconnected");
+                console.log(user);
+
+                delete connectedUsers[user.id];
+
+                console.groupEnd();
+            });
+
+            socket.on("message_created", function (message) {
+                console.group("Message created");
+                console.log(message);
+
+                appendMessages(message);
+
+                console.groupEnd();
             });
 
             socket.on("disconnect", function () {

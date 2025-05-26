@@ -2,27 +2,74 @@ from psycopg_pool import ConnectionPool
 from uuid import UUID
 from typing import Optional
 import psycopg
-from src.models import Message
-from pydantic import ValidationError
+from src.models import Message, Reply
 from datetime import datetime
-from psycopg.rows import TupleRow
+from psycopg.rows import TupleRow,class_row
 
-GET_MESSAGES_OF_CONVERSATION = """
-    SELECT message, timestamp, role, conversation_id
+INSERT_MESSAGE = """
+    INSERT INTO messages (
+        id,
+        conversation_id,
+        user_id,
+        role,
+        timestamp,
+        message
+    ) VALUES (%s, %s, %s, %s, %s, %s)
+    RETURNING *;
+"""
+
+SELECT_MESSAGES = """
+    SELECT *
     FROM messages
-    WHERE conversation_id = %s
+    WHERE
+        conversation_id = %s
         AND (%s::timestamptz IS NULL OR timestamp >= %s::timestamptz)
-        AND (
-            %s IS NOT TRUE OR role != 'system'
-        )
     ORDER BY timestamp
-    LIMIT 100;
+    LIMIT 50;
 """
 
-SET_MESSAGE = """
-    INSERT INTO messages (conversation_id, timestamp, message, role)
-    VALUES (%s, %s, %s, %s);
+SELECT_USER_IDS_OF_CONVERSATION = """
+    SELECT DISTINCT(user_id)
+    FROM messages
+    WHERE conversation_id = %s;
 """
+
+INSERT_REPLY = """
+INSERT INTO replies (
+    id,
+    timestamp,
+    message_id,
+    acknowledged,
+    message
+) VALUES (%s, %s, %s, %s, %s)
+RETURNING *;
+"""
+
+SELECT_REPLIES = """
+    SELECT *
+    FROM latest_replies
+    WHERE
+	    (
+		    %(acknowledged)s::BOOL IS NULL
+		    OR acknowledged = %(acknowledged)s::BOOL
+	    )
+	    AND (
+		    %(completed)s::BOOL IS NULL
+		    OR (message IS NOT NULL) = %(completed)s::BOOL
+	    )
+		AND (
+		    %(message_id)s::UUID IS NULL
+			OR message_id = %(message_id)s::UUID
+		)
+    ORDER BY timestamp DESC
+    LIMIT %(limit)s::INTEGER;
+"""
+
+class MessageInsertionError(Exception):
+    pass
+
+class ReplyInsertionError(Exception):
+    pass
 
 class MessagesRepository:
     pool: ConnectionPool[psycopg.Connection[TupleRow]]
@@ -30,60 +77,102 @@ class MessagesRepository:
     def __init__(self, pool: ConnectionPool[psycopg.Connection[TupleRow]]):
         self.pool = pool
 
-    def set_message(self, message: Message):
+    def create_message(self, message: Message) -> Message:
         """
-        Inserts a message record.
+        Creates a new message record.
         """
-        try:
-            with self.pool.connection() as conn:
-                with conn.cursor() as cur:
-                    cur.execute(
-                        SET_MESSAGE,
-                        (
-                            str(message.conversation_id),
-                            message.timestamp,
-                            message.message,
-                            message.role
-                        ),
-                    )
-                    conn.commit()
-        except psycopg.Error as e:
-            print(f"Database error: {e}")
+        with self.pool.connection() as conn:
+            with conn.cursor(row_factory=class_row(Message)) as cur:
+                cur.execute(
+                    INSERT_MESSAGE,
+                    (
+                        str(message.id),
+                        str(message.conversation_id),
+                        str(message.user_id),
+                        message.role,
+                        message.timestamp,
+                        message.message,
+                    ),
+                )
 
-    def get_messages_of_conversation(
+                new_message = cur.fetchone()
+                if not new_message:
+                    raise MessageInsertionError("Failed to insert message")
+
+                return new_message
+
+    def get_messages(
         self,
+        *,
         conversation_id: UUID,
-        exclude_system_prompts: bool,
         timestamp: Optional[datetime] = None
     ) -> list[Message]:
         """
         Retrieves messages for a given conversation ID, optionally filtering by timestamp.
         """
+        with self.pool.connection() as conn:
+            with conn.cursor(row_factory=class_row(Message)) as cur:
+                cur.execute(
+                    SELECT_MESSAGES,
+                    (
+                        str(conversation_id),
+                        timestamp,
+                        timestamp,
+                    ),
+                )
 
-        messages: list[Message] = []
-        try:
-            with self.pool.connection() as conn:
-                with conn.cursor() as cur:
-                    cur.execute(
-                        GET_MESSAGES_OF_CONVERSATION,
-                        (
-                            str(conversation_id),
-                            timestamp,
-                            timestamp,
-                            exclude_system_prompts
-                        ),
-                    )
-                    for row in cur.fetchall():
-                        try:
-                            message = Message(
-                                message=row[0],
-                                timestamp=row[1],
-                                role=row[2],
-                                conversation_id=row[3]
-                            )
-                            messages.append(message)
-                        except ValidationError as e:
-                            print(f"Validation error for message: {row} - {e}")
-        except psycopg.Error as e:
-            print(f"Database error: {e}")
-        return messages
+                return cur.fetchall()
+
+    def get_user_ids_of_conversation(self, conversation_id: UUID) -> list[UUID]:
+        """
+        Selects all user ids of a conversation
+        """
+        with self.pool.connection() as conn:
+            with conn.cursor() as cur:  # Remove row_factory=class_row(UUID)
+                cur.execute(SELECT_USER_IDS_OF_CONVERSATION, (str(conversation_id), ))
+                rows = cur.fetchall()
+                return [row[0] for row in rows if row and row[0] is not None]
+
+    def get_replies(
+        self,
+        *,
+        acknowledged: bool | None,
+        completed: bool | None,
+        message_id: UUID | None,
+        limit: int
+    ) -> list[Reply]:
+        """
+        Selects replies from Cheryl
+        """
+        with self.pool.connection() as conn:
+            with conn.cursor(row_factory=class_row(Reply)) as cur:
+                cur.execute(SELECT_REPLIES, {
+                    'acknowledged': acknowledged,
+                    'completed': completed,
+                    'message_id': message_id,
+                    'limit': limit
+                })
+                return cur.fetchall()
+
+    def create_reply(self, reply: Reply) -> Reply:
+        """
+        Create a new reply record
+        """
+        with self.pool.connection() as conn:
+            with conn.cursor(row_factory=class_row(Reply)) as cur:
+                cur.execute(
+                    INSERT_REPLY,
+                    (
+                        str(reply.id),
+                        reply.timestamp,
+                        str(reply.message_id),
+                        reply.acknowledged,
+                        reply.message,
+                    ),
+                )
+
+                new_reply = cur.fetchone()
+                if not new_reply:
+                    raise ReplyInsertionError("Failed to insert reply")
+
+                return new_reply

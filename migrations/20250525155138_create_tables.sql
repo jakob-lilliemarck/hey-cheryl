@@ -6,13 +6,26 @@ CREATE TABLE users (
 );
 
 CREATE TABLE user_sessions (
-    id UUID PRIMARY KEY,
+    id UUID NOT NULL,
     user_id UUID NOT NULL,
     timestamp TIMESTAMPTZ NOT NULL,
+    event TEXT NOT NULL,
+    PRIMARY KEY (id, timestamp),
     FOREIGN KEY (user_id) REFERENCES users (id)
 );
 
+CREATE VIEW latest_user_sessions AS
+SELECT DISTINCT
+    ON (id) *
+FROM
+    user_sessions
+ORDER BY
+    id,
+    timestamp DESC;
+
 CREATE INDEX idx_user_sessions_user_id ON user_sessions (user_id);
+
+CREATE INDEX idx_user_sessions_id ON user_sessions (id);
 
 CREATE TABLE messages (
     id UUID PRIMARY KEY,
@@ -30,7 +43,32 @@ CREATE TABLE concepts (
     meaning TEXT NOT NULL
 );
 
+CREATE TABLE replies (
+    id UUID NOT NULL,
+    timestamp TIMESTAMPTZ NOT NULL,
+    message_id UUID NOT NULL,
+    acknowledged BOOL NOT NULL,
+    message TEXT,
+    PRIMARY KEY (id, timestamp),
+    FOREIGN KEY (message_id) REFERENCES messages (id)
+);
+
+CREATE VIEW latest_replies AS
+SELECT DISTINCT
+    ON (id) *
+FROM
+    replies
+ORDER BY
+    id,
+    timestamp DESC;
+
 -- migrate:down
+DROP VIEW latest_user_sessions;
+
+DROP VIEW latest_replies;
+
+DROP TABLE replies;
+
 DROP TABLE user_sessions;
 
 DROP TABLE messages;

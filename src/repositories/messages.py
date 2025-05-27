@@ -5,6 +5,7 @@ import psycopg
 from src.models import Message, Reply
 from datetime import datetime
 from psycopg.rows import TupleRow,class_row
+import logging
 
 INSERT_MESSAGE = """
     INSERT INTO messages (
@@ -16,6 +17,12 @@ INSERT_MESSAGE = """
         message
     ) VALUES (%s, %s, %s, %s, %s, %s)
     RETURNING *;
+"""
+
+SELECT_MESSAGE = """
+    SELECT *
+    FROM messages
+    WHERE id = %s;
 """
 
 SELECT_MESSAGES = """
@@ -35,37 +42,45 @@ SELECT_USER_IDS_OF_CONVERSATION = """
 """
 
 INSERT_REPLY = """
-INSERT INTO replies (
-    id,
-    timestamp,
-    message_id,
-    acknowledged,
-    message
-) VALUES (%s, %s, %s, %s, %s)
-RETURNING *;
+    INSERT INTO replies (
+        id,
+        timestamp,
+        message_id,
+        acknowledged,
+        published,
+        message
+    ) VALUES (%s, %s, %s, %s, %s, %s)
+    RETURNING *;
 """
 
 SELECT_REPLIES = """
-    SELECT *
-    FROM latest_replies
-    WHERE
-	    (
-		    %(acknowledged)s::BOOL IS NULL
-		    OR acknowledged = %(acknowledged)s::BOOL
-	    )
-	    AND (
-		    %(completed)s::BOOL IS NULL
-		    OR (message IS NOT NULL) = %(completed)s::BOOL
-	    )
-		AND (
-		    %(message_id)s::UUID IS NULL
-			OR message_id = %(message_id)s::UUID
-		)
-    ORDER BY timestamp DESC
-    LIMIT %(limit)s::INTEGER;
+SELECT *
+FROM latest_replies
+WHERE
+    (
+	    %(acknowledged)s::BOOL IS NULL
+	    OR acknowledged = %(acknowledged)s::BOOL
+    )
+    AND (
+	    %(completed)s::BOOL IS NULL
+	    OR (message IS NOT NULL) = %(completed)s::BOOL
+    )
+	AND (
+	    %(published)s::BOOL IS NULL
+	    OR published = %(published)s::BOOL
+    )
+	AND (
+	    %(message_id)s::UUID IS NULL
+		OR message_id = %(message_id)s::UUID
+	)
+ORDER BY timestamp DESC
+LIMIT %(limit)s::INTEGER;
 """
 
 class MessageInsertionError(Exception):
+    pass
+
+class MessageNotFoundError(Exception):
     pass
 
 class ReplyInsertionError(Exception):
@@ -81,6 +96,7 @@ class MessagesRepository:
         """
         Creates a new message record.
         """
+        logging.info(f"creating message {message}")
         with self.pool.connection() as conn:
             with conn.cursor(row_factory=class_row(Message)) as cur:
                 cur.execute(
@@ -100,6 +116,26 @@ class MessagesRepository:
                     raise MessageInsertionError("Failed to insert message")
 
                 return new_message
+
+    def get_message(
+        self,
+        *,
+        message_id: UUID
+    ) -> Message:
+        """
+        Selects a message by id
+        """
+        with self.pool.connection() as conn:
+            with conn.cursor(row_factory=class_row(Message)) as cur:
+                cur.execute(
+                    SELECT_MESSAGE,
+                    (str(message_id), )
+                )
+                message = cur.fetchone()
+
+                if not message:
+                    raise MessageNotFoundError(f"User {str(message_id)} not found")
+                return message
 
     def get_messages(
         self,
@@ -138,6 +174,7 @@ class MessagesRepository:
         *,
         acknowledged: bool | None,
         completed: bool | None,
+        published: bool | None,
         message_id: UUID | None,
         limit: int
     ) -> list[Reply]:
@@ -149,6 +186,7 @@ class MessagesRepository:
                 cur.execute(SELECT_REPLIES, {
                     'acknowledged': acknowledged,
                     'completed': completed,
+                    'published': published,
                     'message_id': message_id,
                     'limit': limit
                 })
@@ -158,6 +196,7 @@ class MessagesRepository:
         """
         Create a new reply record
         """
+        logging.info(f"creating reply {reply}")
         with self.pool.connection() as conn:
             with conn.cursor(row_factory=class_row(Reply)) as cur:
                 cur.execute(
@@ -167,6 +206,7 @@ class MessagesRepository:
                         reply.timestamp,
                         str(reply.message_id),
                         reply.acknowledged,
+                        reply.published,
                         reply.message,
                     ),
                 )

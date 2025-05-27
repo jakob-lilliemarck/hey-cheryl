@@ -1,0 +1,17 @@
+[Unit]
+Description=Cheryl Assistant Worker Service
+After=network.target
+
+[Service]
+User=jakob
+Group=jakob
+WorkingDirectory=__APP_DIR__
+EnvironmentFile=__APP_DIR__/.env
+ExecStart=/bin/bash -c 'source __APP_DIR__/.venv/bin/activate && exec __APP_DIR__/.venv/bin/python -m src.cheryl'
+Restart=on-failure
+RestartSec=30
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

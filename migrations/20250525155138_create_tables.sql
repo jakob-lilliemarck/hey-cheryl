@@ -48,6 +48,7 @@ CREATE TABLE replies (
     timestamp TIMESTAMPTZ NOT NULL,
     message_id UUID NOT NULL,
     acknowledged BOOL NOT NULL,
+    published BOOL NOT NULL,
     message TEXT,
     PRIMARY KEY (id, timestamp),
     FOREIGN KEY (message_id) REFERENCES messages (id)

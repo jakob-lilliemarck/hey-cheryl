@@ -1,61 +1,118 @@
-from src.repositories.messages import MessageInsertionError
 from src.repositories.users import UserSessionInsertionError
 from src.repositories.users import UserSessionNotFoundError
 from flask import Flask, render_template, session, request, current_app
-from flask_socketio import SocketIO, emit
+from flask_socketio import SocketIO, join_room, leave_room
 from src.config.config import Config
 import logging
 from uuid import uuid4
-from src.models import Message, UserSession
-from src.models import User
+from src.models import Message, UserSession, ReplyingTo, Reply, User
 from datetime import datetime, timezone
 import mong
 from psycopg_pool import ConnectionPool
 from psycopg import Connection
 from psycopg.rows import TupleRow
-from src.repositories.concepts import ConceptsRepository
 from src.repositories.messages import MessagesRepository
 from src.repositories.users import UserNotFoundError, UsersRepository
 import typing
-from src.services.cheryl import Cheryl
 from uuid import UUID
+from threading import Thread
+from time import sleep
+
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
 
 class MyApp(Flask):
     pool: ConnectionPool[Connection[TupleRow]]
     users_repository: UsersRepository
     messages_repository: MessagesRepository
-    concepts_repository: ConceptsRepository
-    assistant_service: Cheryl
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+
 config = Config.new_from_env()
-app = MyApp(__name__, template_folder='../templates')
-app.config['SECRET_KEY'] = config.SECRET_KEY
-app.config['SESSION_TYPE'] = config.SESSION_TYPE
+
 
 pool = ConnectionPool(
     config.DATABASE_URL,
     connection_class=Connection[TupleRow]
 )
 
+
+app = MyApp(__name__, template_folder='../templates')
+app.config['SECRET_KEY'] = config.SECRET_KEY
+app.config['SESSION_TYPE'] = config.SESSION_TYPE
 app.users_repository = UsersRepository(pool)
 app.messages_repository = MessagesRepository(pool)
-app.concepts_repository = ConceptsRepository(pool)
-app.assistant_service = Cheryl(
-    user_id=config.ASSISTANT_USER_ID,
-    session_id=config.ASSISTANT_SESSION_ID,
-    conversation_id=config.CONVERSATION_ID,
-    messages_repository=app.messages_repository,
-    concepts_repository=app.concepts_repository,
-    users_repository=app.users_repository,
-)
-socketio = SocketIO(app)
 
-USER = 'user'
+
+io = SocketIO(app)
+
+
+class ReplyWithoutBodyError(Exception):
+    pass
+
+
+# A lightweight polling loop to check on Cheryl
+def poll_for_replies():
+    while True:
+        replies_to_publish = app.messages_repository.get_replies(
+            acknowledged=True,
+            completed=True,
+            published=False,
+            message_id=None, # None omits this filter
+            limit=1
+        );
+
+        # If there are replies waiting to publish
+        if replies_to_publish:
+            # Pick out the first (and only) reply.
+            reply = replies_to_publish[0]
+
+            if not reply.message:
+                raise ReplyWithoutBodyError(f"reply with id {reply.id} is missing a message body")
+
+            # Persist the message to the database
+            message = app.messages_repository.create_message(Message(
+                 id=uuid4(),
+                 conversation_id=config.CONVERSATION_ID,
+                 user_id=config.ASSISTANT_USER_ID,
+                 role='assistant',
+                 timestamp=datetime.now(timezone.utc),
+                 message=reply.message,
+            ));
+
+            # Emit it to the room
+            io.emit(
+                'message_created',
+                message.model_dump(mode='json'),
+                to=str(config.CONVERSATION_ID)
+            )
+
+            # And mark the reply as published
+            app.messages_repository.create_reply(Reply(
+                 id=reply.id,
+                 timestamp=datetime.now(timezone.utc),
+                 message_id=reply.message_id,
+                 acknowledged=reply.acknowledged,
+                 published=True,
+                 message=reply.message,
+            ));
+
+            # Then tell the user we're ready for new requests
+            io.emit(
+                'replying_to',
+                ReplyingTo(user_id=None).model_dump(mode='json'),
+                to=str(config.CONVERSATION_ID)
+            )
+
+        sleep(2)
+
+
+# Start the loop
+Thread(target=poll_for_replies, daemon=True).start()
+
 
 @app.route('/')
 def index():
@@ -63,6 +120,7 @@ def index():
     messages = app.messages_repository.get_messages(conversation_id=config.CONVERSATION_ID)
     user_ids_of_conversation = app.messages_repository.get_user_ids_of_conversation(conversation_id=config.CONVERSATION_ID)
     user_ids = app.users_repository.get_connected_user_ids()
+    user_ids_of_conversation.append(config.ASSISTANT_USER_ID)
     users = app.users_repository.get_users_by_id(user_ids_of_conversation)
 
     initial_messages = [msg.model_dump(mode='json') for msg in messages]
@@ -77,7 +135,7 @@ def index():
     )
 
 
-@socketio.on('connect')
+@io.on('connect')
 def on_connect():
     """Handles new WebSocket connections."""
     user_id = request.args.get('user_id')
@@ -85,16 +143,11 @@ def on_connect():
         raise KeyError("Expected a user_id but none was found")
         return
 
-    try:
-        user_id = UUID(user_id)
-    except:
-        raise ValueError("the provided uuid is not valid")
-        return
-
     sid = uuid4()
     session['sid'] = sid
-    app = typing.cast(MyApp, current_app)
+    user_id = UUID(user_id)
     timestamp = datetime.now(timezone.utc)
+    app = typing.cast(MyApp, current_app)
 
     try:
         user = app.users_repository.get_user(user_id)
@@ -109,55 +162,85 @@ def on_connect():
             return
 
     try:
+        app.users_repository.get_latest_user_session(user_id)
+    except UserSessionNotFoundError:
         app.users_repository.create_user_session(UserSession(
             id=sid,
             user_id=user.id,
             timestamp=timestamp,
             event="connected"
         ))
-    except UserSessionInsertionError:
-        logging.error("Could not create user session")
-        return
 
-    emit("user_connected", user.model_dump(mode='json'))
+    join_room(str(config.CONVERSATION_ID))
 
-@socketio.on('user_authored_message')
+    io.emit(
+        "user_connected",
+        user.model_dump(mode='json'),
+        to=str(config.CONVERSATION_ID)
+    )
+
+
+@io.on('user_authored_message')
 def on_message(user_authored_message):
     """Handles incoming WebSocket messages and sends a response."""
     app = typing.cast(MyApp, current_app)
+    message_id = uuid4()
 
-    try:
-        message = app.messages_repository.create_message(Message(
-            id=uuid4(),
-            user_id=user_authored_message['user_id'],
-            role=USER,
-            conversation_id=config.CONVERSATION_ID,
-            message=user_authored_message['body'],
-            timestamp=datetime.now(timezone.utc)
-        ))
-    except MessageInsertionError:
-        logging.error("The message could not be created")
+    # Insert the message in the database
+    logging.info(f"on_message({message_id}): Storing message")
+    message = app.messages_repository.create_message(Message(
+        id=uuid4(),
+        user_id=user_authored_message['user_id'],
+        role='user',
+        conversation_id=config.CONVERSATION_ID,
+        message=user_authored_message['body'],
+        timestamp=datetime.now(timezone.utc)
+    ))
+
+    # Emit it to the room
+    logging.info(f"on_message({message_id}): Emitting message to room")
+    io.emit(
+        'message_created',
+        message.model_dump(mode='json'),
+        to=str(config.CONVERSATION_ID)
+    )
+
+    # Check if there are any replies in progress
+    logging.info(f"on_message({message_id}): Checking Cheryls availability")
+    replies_in_progress = app.messages_repository.get_replies(
+        acknowledged=True,
+        completed=False,
+        published=False,
+        message_id=None,
+        limit=1
+    );
+
+    # if there are work in progress we just return
+    if replies_in_progress:
+        logging.info(f"on_message({message_id}): Cheryl is busy, skipping request for reply")
         return
 
+    # If not we request a reply
+    logging.info(f"on_message({message_id}): Cheryl is available, requesting a reply")
+    app.messages_repository.create_reply(Reply(
+        id=uuid4(),
+        timestamp=datetime.now(timezone.utc),
+        message_id=message.id,
+        acknowledged=False,
+        published=False,
+        message=None,
+    ));
 
-    emit('message_created', message.model_dump(mode='json'))
-
-    # Start a background task to generate and emit the reply
-    socketio.start_background_task(generate_and_emit_reply, message)
-
-def generate_and_emit_reply(message):
-    """Generates the assistant's reply and emits it back to the client."""
-    # Establish the application context for this thread
-    with app.app_context():
-        reply = app.assistant_service.ask_to_reply(message)
-        logging.info(f"reply: {reply}")
-        # FIXME: DOES NOT WORK!!!
-        # Emit the message specifically to the client using their SID
-        # emit('message_created', reply.model_dump(mode='json'))
+    # and then inform the user we're working on it
+    logging.info(f"on_message({message_id}): Emitting replying to user")
+    io.emit(
+        'replying_to',
+        ReplyingTo(user_id=message.user_id).model_dump(mode='json'),
+        to=str(config.CONVERSATION_ID)
+    )
 
 
-
-@socketio.on('disconnect')
+@io.on('disconnect')
 def on_disconnect():
     """Handles WebSocket disconnections."""
     try:
@@ -177,5 +260,8 @@ def on_disconnect():
         logging.error("Could not create a user session event with the database")
         return
 
+    leave_room(str(config.CONVERSATION_ID))
+
+
 if __name__ == '__main__':
-    socketio.run(app, debug=True) # Set debug=False for production
+    io.run(app, debug=False) # Set debug=False for production

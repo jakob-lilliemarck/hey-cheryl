@@ -14,43 +14,171 @@
                 width: 100%;
             }
             body {
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                max-width: 700px;
+                --other-user-h: 100;
+                --other-user-s: 20%;
+                --other-user-l: 82%;
+                --other-user-accent: hsl(
+                    var(--other-user-h),
+                    var(--other-user-s),
+                    var(--other-user-l)
+                );
+                --other-user-bg: hsl(
+                    var(--other-user-h),
+                    var(--other-user-s),
+                    calc(var(--other-user-l) + 15%)
+                );
+                --current-user-h: 100;
+                --current-user-s: 80%;
+                --current-user-l: 65%;
+                --current-user-bg: hsl(
+                    var(--current-user-h),
+                    var(--current-user-s),
+                    calc(var(--current-user-l) + 25%)
+                );
+                --current-user-accent: hsl(
+                    var(--current-user-h),
+                    var(--current-user-s),
+                    var(--current-user-l)
+                );
                 height: 100%;
                 width: 100%;
                 flex-grow: 1;
                 gap: 1rem;
+                display: grid;
+                grid-template-columns: 1fr minmax(auto, 700px) 1fr;
+                grid-template-rows: 1fr minmax(auto, 5rem);
+                grid-template-areas: "A B C" "A D .";
+                margin: 0;
+            }
+            #toasts {
+                --h: 44;
+                --s: 70%;
+                --l: 60%;
+                position: absolute;
+                top: 0.5rem;
+                display: grid;
+                width: 100%;
+                justify-content: center;
+                align-items: center;
+                grid-template-columns: 1fr minmax(auto, 700px) 1fr;
+                grid-template-areas: "A B C";
+            }
+            .notification {
+                grid-area: B;
+                background-color: hsl(var(--h), var(--s), calc(var(--l) + 25%));
+                border: 1px solid hsl(var(--h), var(--s), var(--l));
+                margin: 0 0.5rem 0 0.5rem;
+                padding: 0.5rem 0.75rem;
+                border-radius: 0.5rem;
+                opacity: 0;
+                transition: opacity 500ms ease;
+                font-size: 0.875rem;
+            }
+            .notification.enabled {
+                opacity: 1;
             }
             #messages {
                 display: flex;
                 flex-direction: column;
-                width: 100%;
-                height: 100%;
                 flex-grow: 1;
-                gap: 1rem;
+                gap: 1.5rem;
                 background: #fff;
                 overflow-y: scroll;
-                margin-top: 1rem;
+                border-radius: 0 0 0.25rem 0.25rem;
+                grid-area: B;
+                padding: 0.5rem;
+            }
+            .message {
+                --indent: 5rem;
+                display: flex;
+                flex-direction: column;
+                gap: 0.25rem;
+            }
+            .message > .sender {
+                margin-left: 1rem;
+                font-size: 0.875rem;
+                color: #919191;
+            }
+            .message.assistant > .sender::after {
+                content: " says";
+            }
+            .message.current-user > .sender {
+                display: none;
+            }
+            .message > .body {
+                padding: 0.5rem 0.75rem;
+                border-radius: 2rem;
+                border: 1px solid black;
+                margin: 0;
+                align-items: center;
+                display: flex;
+                border-width: 1px;
+                border-style: solid;
+            }
+            .message.current-user {
+                margin-left: var(--indent);
+            }
+            .message.current-user > .body {
+                background-color: var(--current-user-bg);
+                border-color: var(--current-user-accent);
+            }
+            .message.other-user {
+                margin-right: var(--indent);
+            }
+            .message.other-user > .body {
+                background-color: var(--other-user-bg);
+                border-color: var(--other-user-accent);
+            }
+            .message.assistant {
+            }
+            #participants {
+                grid-area: C;
+                width: 250px;
+                align-self: end;
+                display: flex;
+                flex-direction: column-reverse;
+                gap: 0.5rem;
+            }
+            .participant {
+                background: #fff;
                 padding: 1rem;
                 border-radius: 0.25rem;
+                border-width: 1px;
+                border-style: solid;
             }
-            #messageInput {
-                width: 100%;
+            .participant.current-user {
+                background-color: var(--current-user-bg);
+                border-color: var(--current-user-accent);
+            }
+            .participant.other-user {
+                background-color: var(--other-user-bg);
+                border-color: var(--other-user-accent);
+            }
+            #editor {
+                display: flex;
+                flex-grow: 1;
                 background: #fff;
-                width: 100%;
                 outline: none;
                 border: none;
-                padding: 1rem;
-                margin-bottom: 1rem;
                 border-radius: 0.25rem;
+                grid-area: D;
+                margin-bottom: 1rem;
+                padding: 0.5rem 1rem;
             }
         </style>
     </head>
     <body>
+        <div id="toasts">
+            <div id="replying" class="notification"></div>
+        </div>
         <div id="messages"></div>
-        <input type="text" id="messageInput" placeholder="Ask Cheryl" />
+        <div id="participants"></div>
+        <input
+            id="editor"
+            type="text"
+            id="messageInput"
+            placeholder="Ask Cheryl"
+        />
         <script>
             // Contants
             const ROLE_USER = "user";
@@ -81,9 +209,12 @@
             }
 
             // Variables
-            var messages = document.getElementById("messages");
-            var messageInput = document.getElementById("messageInput");
-            var socket = io({
+            const toasts = document.getElementById("toasts");
+            const replying = document.getElementById("replying");
+            const messages = document.getElementById("messages");
+            const participants = document.getElementById("participants");
+            const editor = document.getElementById("editor");
+            const socket = io({
                 query: {
                     user_id: getClientID(),
                 },
@@ -104,36 +235,36 @@
             }
 
             function getUserName(userID) {
-                console.log("getUserName", { userID, users });
                 let user = users[userID];
                 if (user == null) {
                     console.log("user not found");
                     return "unknown";
                 }
-                console.log("user name", { name: user.name });
                 return user.name;
             }
 
             function sendMessage() {
                 const clientID = getClientID();
-                const body = messageInput.value;
+                const body = editor.value;
 
                 socket.emit("user_authored_message", {
                     user_id: clientID,
                     body: body,
                 });
 
-                messageInput.value = "";
+                editor.value = "";
             }
 
             function createMessageElement(message) {
-                console.log("message", message);
-                const messageClass =
-                    message.role == ROLE_ASSISTANT
-                        ? "assistant"
-                        : message.user_id == getClientID()
-                          ? "current-user"
-                          : "other-user";
+                const classList = [
+                    "message",
+                    message.user_id == getClientID()
+                        ? "current-user"
+                        : "other-user",
+                ];
+                if (message.role == ROLE_ASSISTANT) {
+                    classList.push("assistant");
+                }
 
                 // Create the body element
                 const bodyEl = document.createElement("p");
@@ -149,7 +280,7 @@
                 const messageEl = document.createElement("div");
                 messageEl.appendChild(senderEl);
                 messageEl.appendChild(bodyEl);
-                messageEl.classList.add("message", messageClass);
+                messageEl.classList.add(...classList);
 
                 return messageEl;
             }
@@ -157,16 +288,43 @@
             function appendMessages(...msgs) {
                 const fragment = new DocumentFragment();
                 msgs.forEach((message) => {
-                    const element = createMessageElement(message);
-                    fragment.appendChild(element);
+                    const el = createMessageElement(message);
+                    fragment.appendChild(el);
                 });
-
                 messages.appendChild(fragment);
                 messages.scrollTop = messages.scrollHeight;
             }
 
+            function createParticipantElement(user) {
+                const participantClass =
+                    user.id == getClientID() ? "current-user" : "other-user";
+                const participantEl = document.createElement("div");
+                participantEl.innerHTML += getUserName(user.id);
+                participantEl.classList.add("participant", participantClass);
+                return participantEl;
+            }
+
+            function appendParticipants(...users) {
+                const fragment = new DocumentFragment();
+                users.forEach((user) => {
+                    const el = createParticipantElement(user);
+                    fragment.appendChild(el);
+                });
+                participants.appendChild(fragment);
+            }
+
+            function showReplyingTo({ user_id }) {
+                const user = users[user_id];
+                replying.innerHTML = `Cheryl is replying to ${user ? user.name : "someone"}`;
+                replying.classList.add("enabled");
+            }
+
+            function hideReplyingTo() {
+                replying.classList.remove("enabled");
+            }
+
             // DOM event handlers
-            messageInput.addEventListener("keypress", function (event) {
+            editor.addEventListener("keypress", function (event) {
                 if (event.key === "Enter") {
                     event.preventDefault();
                     sendMessage();
@@ -175,6 +333,16 @@
 
             document.addEventListener("DOMContentLoaded", (event) => {
                 appendMessages(...initialMessages);
+
+                appendParticipants(
+                    ...initialConnectedUserIDs.reduce((connectedUsers, id) => {
+                        const user = users[id];
+                        if (user) {
+                            connectedUsers.push(user);
+                        }
+                        return connectedUsers;
+                    }, []),
+                );
             });
 
             // Socket event handlers
@@ -185,6 +353,8 @@
                     userID: getClientID(),
                 });
                 console.groupEnd();
+
+                socket.emit("join", { user_id: getClientID() });
             });
 
             socket.on("user_connected", function (user) {
@@ -192,6 +362,9 @@
                 console.log(user);
 
                 connectedUsersIDs[user.id] = true;
+                users[user.id] = user;
+
+                appendParticipants(user);
 
                 console.groupEnd();
             });
@@ -200,7 +373,7 @@
                 console.group("User dicconnected");
                 console.log(user);
 
-                delete connectedUsers[user.id];
+                delete connectedUsersIDs[user.id];
 
                 console.groupEnd();
             });
@@ -210,6 +383,18 @@
                 console.log(message);
 
                 appendMessages(message);
+
+                console.groupEnd();
+            });
+
+            socket.on("replying_to", function ({ user_id }) {
+                console.group("Replying to");
+
+                if (user_id) {
+                    showReplyingTo({ user_id });
+                } else {
+                    hideReplyingTo();
+                }
 
                 console.groupEnd();
             });

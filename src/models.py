@@ -2,6 +2,7 @@ from pydantic import BaseModel
 from datetime import datetime
 from uuid import UUID
 
+# Domain models
 class User(BaseModel):
     id: UUID
     name: str
@@ -26,9 +27,14 @@ class Reply(BaseModel):
     timestamp: datetime
     message_id: UUID
     acknowledged: bool
-    message: str
+    published: bool
+    message: str | None
 
 class Concept(BaseModel):
     id: UUID
     concept: str
     meaning: str
+
+# Response models
+class ReplyingTo(BaseModel):
+    user_id: UUID | None

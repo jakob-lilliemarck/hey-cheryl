@@ -14,6 +14,22 @@
                 width: 100%;
             }
             body {
+                /* Assistant */
+                --assistant-h: 100;
+                --assistant-s: 20%;
+                --assistant-l: 82%;
+                --assistant-accent: hsl(
+                    var(--assistant-h),
+                    var(--assistant-s),
+                    var(--assistant-l)
+                );
+                --assistant-bg: hsl(
+                    var(--assistant-h),
+                    var(--assistant-s),
+                    calc(var(--assistant-l) + 15%)
+                );
+
+                /* Other users */
                 --other-user-h: 100;
                 --other-user-s: 20%;
                 --other-user-l: 82%;
@@ -27,6 +43,8 @@
                     var(--other-user-s),
                     calc(var(--other-user-l) + 15%)
                 );
+
+                /* Current user */
                 --current-user-h: 100;
                 --current-user-s: 80%;
                 --current-user-l: 65%;
@@ -80,6 +98,7 @@
             #messages {
                 display: flex;
                 flex-direction: column;
+                justify-content: end;
                 flex-grow: 1;
                 gap: 1.5rem;
                 background: #fff;

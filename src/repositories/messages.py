@@ -5,7 +5,6 @@ import psycopg
 from src.models import Message, Reply
 from datetime import datetime
 from psycopg.rows import TupleRow,class_row
-import logging
 
 INSERT_MESSAGE = """
     INSERT INTO messages (
@@ -96,7 +95,6 @@ class MessagesRepository:
         """
         Creates a new message record.
         """
-        logging.info(f"creating message {message}")
         with self.pool.connection() as conn:
             with conn.cursor(row_factory=class_row(Message)) as cur:
                 cur.execute(
@@ -196,7 +194,6 @@ class MessagesRepository:
         """
         Create a new reply record
         """
-        logging.info(f"creating reply {reply}")
         with self.pool.connection() as conn:
             with conn.cursor(row_factory=class_row(Reply)) as cur:
                 cur.execute(

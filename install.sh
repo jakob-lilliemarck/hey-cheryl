@@ -165,11 +165,14 @@ if [ ! -f "$NGINX_CONF_SRC" ]; then
     exit 1
 fi
 
-echo "Copying Nginx configuration to ${NGINX_CONF_DEST}..."
-# This will overwrite the existing Nginx config for hey-cheryl.se if it exists
-if ! cp "$NGINX_CONF_SRC" "$NGINX_CONF_DEST"; then
-    echo "Error: Failed to copy Nginx configuration."
-    exit 1
+if [ ! -f "$NGINX_CONF_DEST" ]; then
+    echo "Copying Nginx configuration to ${NGINX_CONF_DEST}..."
+    if ! cp "$NGINX_CONF_SRC" "$NGINX_CONF_DEST"; then
+        echo "Error: Failed to copy Nginx configuration."
+        exit 1
+    fi
+else
+    echo "Nginx configuration already exists at ${NGINX_CONF_DEST}, skipping copy..."
 fi
 
 # No sed substitution needed for domain as it's hardcoded in the template deploy/nginx.conf

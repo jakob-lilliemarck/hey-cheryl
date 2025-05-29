@@ -19,9 +19,23 @@ SET default_table_access_method = heap;
 
 CREATE TABLE public.concepts (
     id uuid NOT NULL,
+    "timestamp" timestamp with time zone NOT NULL,
     concept text NOT NULL,
     meaning text NOT NULL
 );
+
+
+--
+-- Name: latest_concepts; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW public.latest_concepts AS
+ SELECT DISTINCT ON (id) id,
+    "timestamp",
+    concept,
+    meaning
+   FROM public.concepts
+  ORDER BY id, "timestamp" DESC;
 
 
 --
@@ -49,6 +63,29 @@ CREATE VIEW public.latest_replies AS
     message
    FROM public.replies
   ORDER BY id, "timestamp" DESC;
+
+
+--
+-- Name: system_prompts; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.system_prompts (
+    key text NOT NULL,
+    "timestamp" timestamp with time zone NOT NULL,
+    prompt text NOT NULL
+);
+
+
+--
+-- Name: latest_system_prompts; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW public.latest_system_prompts AS
+ SELECT DISTINCT ON (key) key,
+    "timestamp",
+    prompt
+   FROM public.system_prompts
+  ORDER BY key, "timestamp" DESC;
 
 
 --
@@ -115,7 +152,7 @@ CREATE TABLE public.users (
 --
 
 ALTER TABLE ONLY public.concepts
-    ADD CONSTRAINT concepts_pkey PRIMARY KEY (id);
+    ADD CONSTRAINT concepts_pkey PRIMARY KEY (id, "timestamp");
 
 
 --
@@ -143,6 +180,14 @@ ALTER TABLE ONLY public.schema_migrations
 
 
 --
+-- Name: system_prompts system_prompts_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.system_prompts
+    ADD CONSTRAINT system_prompts_pkey PRIMARY KEY (key, "timestamp");
+
+
+--
 -- Name: user_sessions user_sessions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -156,6 +201,13 @@ ALTER TABLE ONLY public.user_sessions
 
 ALTER TABLE ONLY public.users
     ADD CONSTRAINT users_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: idx_system_prompts_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_system_prompts_key ON public.system_prompts USING btree (key);
 
 
 --

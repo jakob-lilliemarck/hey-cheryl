@@ -2,7 +2,7 @@ from psycopg_pool import ConnectionPool
 from uuid import UUID
 from typing import Optional
 import psycopg
-from src.models import Message, Reply
+from src.models import Message, Reply, ReplyStatus
 from datetime import datetime
 from psycopg.rows import TupleRow,class_row
 
@@ -161,7 +161,7 @@ class MessagesRepository:
     def get_replies(
         self,
         *,
-        status: list[str] | None,
+        status: list[ReplyStatus] | None,
         message_id: UUID | None,
         limit: int
     ) -> list[Reply]:
@@ -171,7 +171,7 @@ class MessagesRepository:
         with self.pool.connection() as conn:
             with conn.cursor(row_factory=class_row(Reply)) as cur:
                 cur.execute(SELECT_REPLIES, {
-                    'status': status,
+                    'status': [s.value for s in status] if status else None,
                     'message_id': message_id,
                     'limit': limit
                 })
@@ -189,7 +189,7 @@ class MessagesRepository:
                         str(reply.id),
                         reply.timestamp,
                         str(reply.message_id),
-                        reply.status,
+                        reply.status.value,
                         reply.message,
                     ),
                 )

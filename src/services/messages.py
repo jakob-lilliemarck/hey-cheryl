@@ -1,16 +1,12 @@
 from src.repositories.messages import MessagesRepository
 from src.config.config import Config
-from src.models import Message, Reply
+from src.models import Message, Reply, ReplyStatus
 from uuid import UUID, uuid4
 from datetime import datetime
 import logging
 
 class ReplyWithoutBodyError(Exception):
     pass
-
-PENDING = 'pending'
-READY = 'ready'
-PUBLISHED = 'published'
 
 class MessagesService():
     config: Config
@@ -68,7 +64,7 @@ class MessagesService():
     ) -> Reply | None:
         logging.info("MessagesService.enqueue_if_available: checking availability")
         replies_in_progress = self.messages_repository.get_replies(
-            status=[PENDING, READY], # TODO - or just PENDING maybe?
+            status=[ReplyStatus.PENDING, ReplyStatus.READY], # TODO - or just PENDING maybe?
             message_id=None,
             limit=1
         );
@@ -84,7 +80,7 @@ class MessagesService():
             id=uuid4(),
             timestamp=timestamp,
             message_id=message_id,
-            status=PENDING,
+            status=ReplyStatus.PENDING,
             message=None,
         ));
 
@@ -95,7 +91,7 @@ class MessagesService():
         timestamp: datetime
     ) -> Reply | None:
         replies = self.messages_repository.get_replies(
-            status=[PENDING],
+            status=[ReplyStatus.PENDING],
             message_id=None,
             limit=1
         );
@@ -107,7 +103,7 @@ class MessagesService():
 
     def get_next_reply_to_publish(self) -> Reply | None:
         replies = self.messages_repository.get_replies(
-            status=[READY],
+            status=[ReplyStatus.READY],
             message_id=None,
             limit=1
         );
@@ -132,7 +128,7 @@ class MessagesService():
              id=reply.id,
              timestamp=timestamp,
              message_id=reply.message_id,
-             status=READY,
+             status=ReplyStatus.READY,
              message=content,
         ));
         return reply
@@ -146,7 +142,7 @@ class MessagesService():
              id=reply.id,
              timestamp=timestamp,
              message_id=reply.message_id,
-             status=PUBLISHED,
+             status=ReplyStatus.PUBLISHED,
              message=reply.message,
         ));
         return reply

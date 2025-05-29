@@ -38,10 +38,21 @@ CREATE TABLE messages (
 );
 
 CREATE TABLE concepts (
-    id UUID PRIMARY KEY,
+    id UUID NOT NULL,
+    timestamp TIMESTAMPTZ NOT NULL,
     concept TEXT NOT NULL,
-    meaning TEXT NOT NULL
+    meaning TEXT NOT NULL,
+    PRIMARY KEY (id, timestamp)
 );
+
+CREATE VIEW latest_concepts AS
+SELECT DISTINCT
+    ON (id) *
+FROM
+    concepts
+ORDER BY
+    id,
+    timestamp DESC;
 
 CREATE TABLE replies (
     id UUID NOT NULL,
@@ -62,11 +73,35 @@ ORDER BY
     id,
     timestamp DESC;
 
+CREATE TABLE system_prompts (
+    key TEXT NOT NULL,
+    timestamp TIMESTAMPTZ NOT NULL,
+    prompt TEXT NOT NULL,
+    PRIMARY KEY (key, timestamp)
+);
+
+CREATE INDEX idx_system_prompts_key ON system_prompts (key);
+
+CREATE VIEW latest_system_prompts AS
+SELECT DISTINCT
+    ON (key) *
+FROM
+    system_prompts
+ORDER BY
+    key,
+    timestamp DESC;
+
 -- migrate:down
+-- Views
 DROP VIEW latest_user_sessions;
 
 DROP VIEW latest_replies;
 
+DROP VIEW latest_system_prompts;
+
+DROP VIEW latest_concepts;
+
+--  Tables
 DROP TABLE replies;
 
 DROP TABLE user_sessions;
@@ -76,3 +111,5 @@ DROP TABLE messages;
 DROP TABLE users;
 
 DROP TABLE concepts;
+
+DROP TABLE system_prompts;

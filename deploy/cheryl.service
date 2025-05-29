@@ -3,8 +3,8 @@ Description=Cheryl Assistant Worker Service
 After=network.target
 
 [Service]
-User=jakob
-Group=jakob
+#User=root
+#Group=root
 WorkingDirectory=__APP_DIR__
 EnvironmentFile=__APP_DIR__/.env
 ExecStart=/bin/bash -c 'source __APP_DIR__/.venv/bin/activate && exec __APP_DIR__/.venv/bin/python -m src.cheryl'

@@ -116,13 +116,12 @@ if [ ! -f "$CHERYL_SERVICE_SRC" ]; then
     echo "Error: Cheryl worker service source file not found at ${CHERYL_SERVICE_SRC}"
     exit 1
 fi
-echo "Copying Cheryl worker service file to ${CHERYL_SERVICE_DEST}..."`
+echo "Copying Cheryl worker service file to ${CHERYL_SERVICE_DEST}..."
 if ! cp "$CHERYL_SERVICE_SRC" "$CHERYL_SERVICE_DEST"; then
     echo "Error: Failed to copy Cheryl worker service file."
     exit 1
 fi
 echo "Configuring Cheryl worker service file placeholders..."
-# Use | as the delimiter for sed because the path contains /
 if ! sed -i "s|__APP_DIR__|$INSTALL_DIR|g" "$CHERYL_SERVICE_DEST"; then
     echo "Error substituting __APP_DIR__ in Cheryl worker service file."
     exit 1
@@ -134,12 +133,12 @@ if ! systemctl daemon-reload; then
 fi
 echo "Enabling ${CHERYL_SERVICE_NAME}..."
 if ! systemctl enable "${CHERYL_SERVICE_NAME}"; then
-    echo "Error: Failed to enable ${CHERYL_SERVICE_NAME}."`
+    echo "Error: Failed to enable ${CHERYL_SERVICE_NAME}."
     exit 1
 fi
-echo "Starting ${CHERYL_SERVICE_NAME}..."`
+echo "Starting ${CHERYL_SERVICE_NAME}..."\
 if ! systemctl start "${CHERYL_SERVICE_NAME}"; then
-    echo "Error: Failed to start ${CHERYL_SERVICE_NAME}."`
+    echo "Error: Failed to start ${CHERYL_SERVICE_NAME}."
 fi
 echo "Cheryl worker systemd service setup complete."
 
@@ -173,8 +172,6 @@ if ! cp "$NGINX_CONF_SRC" "$NGINX_CONF_DEST"; then
     echo "Error: Failed to copy Nginx configuration."
     exit 1
 fi
-
-# No sed substitution needed for domain as it's hardcoded in the template deploy/nginx.conf
 
 echo "Testing Nginx configuration..."
 if ! nginx -t; then

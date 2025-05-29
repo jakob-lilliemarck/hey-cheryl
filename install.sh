@@ -136,7 +136,7 @@ if ! systemctl enable "${CHERYL_SERVICE_NAME}"; then
     echo "Error: Failed to enable ${CHERYL_SERVICE_NAME}."
     exit 1
 fi
-echo "Starting ${CHERYL_SERVICE_NAME}..."\
+echo "Starting ${CHERYL_SERVICE_NAME}..."
 if ! systemctl start "${CHERYL_SERVICE_NAME}"; then
     echo "Error: Failed to start ${CHERYL_SERVICE_NAME}."
 fi

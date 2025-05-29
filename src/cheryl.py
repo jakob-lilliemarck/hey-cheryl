@@ -75,6 +75,9 @@ class Contextualizer(AbstractContextualizer):
         self.embeddings = self.model.encode([c.meaning for c in self.concepts])
 
     def get_related_concepts(self, message: str, n: int) -> list[Concept]:
+        if not self.concepts:
+            return []
+
         input = self.model.encode([message])[0]
 
         scores = cosine_similarity([input], self.embeddings)[0]
@@ -91,8 +94,6 @@ class Contextualizer(AbstractContextualizer):
         Retrieves related concepts and formats them into a prompt string.
         """
         concepts = self.get_related_concepts(message, 3)
-        logging.info(f"using concepts:\n{concepts}")
-
         prompt_section = textwrap.dedent("""\
             You are Cheryl, professor of aesthetics at Konstfack, University of Arts, Crafts and Design.\n
             """)

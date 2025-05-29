@@ -102,6 +102,48 @@ if ! systemctl start "${GUNICORN_SERVICE_NAME}"; then
 fi
 echo "Gunicorn systemd service setup complete."
 
+# --- Install and Configure Cheryl Worker Systemd Service ---
+echo "Updating and configuring Cheryl worker systemd service..."
+CHERYL_SERVICE_NAME="cheryl.service"
+CHERYL_SERVICE_SRC="${INSTALL_DIR}/deploy/${CHERYL_SERVICE_NAME}"
+CHERYL_SERVICE_DEST="/etc/systemd/system/${CHERYL_SERVICE_NAME}"
+
+echo "Attempting to stop and disable ${CHERYL_SERVICE_NAME}..."
+systemctl stop "${CHERYL_SERVICE_NAME}" >/dev/null 2>&1 || true
+systemctl disable "${CHERYL_SERVICE_NAME}" >/dev/null 2>&1 || true
+
+if [ ! -f "$CHERYL_SERVICE_SRC" ]; then
+    echo "Error: Cheryl worker service source file not found at ${CHERYL_SERVICE_SRC}"
+    exit 1
+fi
+echo "Copying Cheryl worker service file to ${CHERYL_SERVICE_DEST}..."`
+if ! cp "$CHERYL_SERVICE_SRC" "$CHERYL_SERVICE_DEST"; then
+    echo "Error: Failed to copy Cheryl worker service file."
+    exit 1
+fi
+echo "Configuring Cheryl worker service file placeholders..."
+# Use | as the delimiter for sed because the path contains /
+if ! sed -i "s|__APP_DIR__|$INSTALL_DIR|g" "$CHERYL_SERVICE_DEST"; then
+    echo "Error substituting __APP_DIR__ in Cheryl worker service file."
+    exit 1
+fi
+echo "Reloading systemd daemon for Cheryl service..."
+if ! systemctl daemon-reload; then
+    echo "Error: Failed to reload systemd daemon."
+    exit 1
+fi
+echo "Enabling ${CHERYL_SERVICE_NAME}..."
+if ! systemctl enable "${CHERYL_SERVICE_NAME}"; then
+    echo "Error: Failed to enable ${CHERYL_SERVICE_NAME}."`
+    exit 1
+fi
+echo "Starting ${CHERYL_SERVICE_NAME}..."`
+if ! systemctl start "${CHERYL_SERVICE_NAME}"; then
+    echo "Error: Failed to start ${CHERYL_SERVICE_NAME}."`
+fi
+echo "Cheryl worker systemd service setup complete."
+
+
 # --- Install and Configure Nginx ---
 echo "Installing and configuring Nginx..."
 
@@ -160,11 +202,13 @@ echo "Nginx setup complete."
 echo "------------------------------------------------------------------"
 echo "Installation complete."
 echo "Gunicorn service: sudo systemctl status ${GUNICORN_SERVICE_NAME}"
+echo "Cheryl worker service: sudo systemctl status ${CHERYL_SERVICE_NAME}"
 echo "Nginx service: sudo systemctl status nginx"
 echo "Application should be accessible via HTTP at http://hey-cheryl.se"
 echo ""
 echo "--- Viewing Logs ---"
 echo "To view Gunicorn (application) logs:  sudo journalctl -u ${GUNICORN_SERVICE_NAME} -f"
+echo "To view Cheryl worker logs:           sudo journalctl -u ${CHERYL_SERVICE_NAME} -f"
 echo "To view Nginx access logs:            sudo journalctl -u nginx -f"
 echo "To view PostgreSQL logs:              sudo journalctl -u postgresql -f"
 echo ""

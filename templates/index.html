@@ -14,121 +14,418 @@
                 width: 100%;
             }
             body {
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                max-width: 700px;
+                /* Assistant */
+                --assistant-h: 280;
+                --assistant-s: 95%;
+                --assistant-l: 50%;
+                --assistant-accent: hsl(
+                    var(--assistant-h),
+                    var(--assistant-s),
+                    var(--assistant-l)
+                );
+                --assistant-bg: hsl(
+                    var(--assistant-h),
+                    var(--assistant-s),
+                    calc(var(--assistant-l) + 45%)
+                );
+
+                /* Other users */
+                --other-user-h: 100;
+                --other-user-s: 20%;
+                --other-user-l: 82%;
+                --other-user-accent: hsl(
+                    var(--other-user-h),
+                    var(--other-user-s),
+                    var(--other-user-l)
+                );
+                --other-user-bg: hsl(
+                    var(--other-user-h),
+                    var(--other-user-s),
+                    calc(var(--other-user-l) + 15%)
+                );
+
+                /* Current user */
+                --current-user-h: 100;
+                --current-user-s: 80%;
+                --current-user-l: 65%;
+                --current-user-bg: hsl(
+                    var(--current-user-h),
+                    var(--current-user-s),
+                    calc(var(--current-user-l) + 25%)
+                );
+                --current-user-accent: hsl(
+                    var(--current-user-h),
+                    var(--current-user-s),
+                    var(--current-user-l)
+                );
                 height: 100%;
                 width: 100%;
                 flex-grow: 1;
                 gap: 1rem;
+                display: grid;
+                grid-template-columns: 1fr minmax(auto, 700px) 1fr;
+                grid-template-rows: 1fr minmax(auto, 5rem);
+                grid-template-areas: "A B C" "A D .";
+                margin: 0;
+            }
+            #toasts {
+                --h: 44;
+                --s: 70%;
+                --l: 60%;
+                position: absolute;
+                top: 0.5rem;
+                display: grid;
+                width: 100%;
+                justify-content: center;
+                align-items: center;
+                grid-template-columns: 1fr minmax(auto, 700px) 1fr;
+                grid-template-areas: "A B C";
+            }
+            .notification {
+                grid-area: B;
+                background-color: hsl(var(--h), var(--s), calc(var(--l) + 25%));
+                border: 1px solid hsl(var(--h), var(--s), var(--l));
+                margin: 0 0.5rem 0 0.5rem;
+                padding: 0.5rem 0.75rem;
+                border-radius: 0.5rem;
+                opacity: 0;
+                transition: opacity 500ms ease;
+                font-size: 0.875rem;
+            }
+            .notification.enabled {
+                opacity: 1;
             }
             #messages {
                 display: flex;
                 flex-direction: column;
-                width: 100%;
-                height: 100%;
+                justify-content: end;
                 flex-grow: 1;
-                gap: 1rem;
+                gap: 1.5rem;
                 background: #fff;
                 overflow-y: scroll;
-                margin-top: 1rem;
+                border-radius: 0 0 0.25rem 0.25rem;
+                grid-area: B;
+                padding: 0.5rem;
+            }
+            .message {
+                --indent: 5rem;
+                display: flex;
+                flex-direction: column;
+                gap: 0.25rem;
+            }
+            .message > .sender {
+                margin-left: 1rem;
+                font-size: 0.875rem;
+                color: #919191;
+            }
+            .message.other-user.assistant > .sender {
+                color: var(--assistant-accent);
+            }
+            .message.other-user.assistant > .sender::after {
+                content: " says";
+            }
+            .message.current-user > .sender {
+                display: none;
+            }
+            .message > .body {
+                padding: 0.5rem 0.75rem;
+                border-radius: 2rem;
+                border: 1px solid black;
+                margin: 0;
+                align-items: center;
+                display: flex;
+                border-width: 1px;
+                border-style: solid;
+            }
+            .message.current-user {
+                margin-left: var(--indent);
+            }
+            .message.current-user > .body {
+                background-color: var(--current-user-bg);
+                border-color: var(--current-user-accent);
+            }
+            .message.other-user {
+                margin-right: var(--indent);
+            }
+            .message.other-user > .body {
+                background-color: var(--other-user-bg);
+                border-color: var(--other-user-accent);
+            }
+            .message.other-user.assistant > .body {
+                background-color: var(--assistant-bg);
+                border-color: var(--assistant-accent);
+            }
+            #participants {
+                grid-area: C;
+                width: 250px;
+                align-self: end;
+                display: flex;
+                flex-direction: column-reverse;
+                gap: 0.5rem;
+            }
+            .participant {
+                background: #fff;
                 padding: 1rem;
                 border-radius: 0.25rem;
+                border-width: 1px;
+                border-style: solid;
             }
-            #messageInput {
-                width: 100%;
+            .participant.current-user {
+                background-color: var(--current-user-bg);
+                border-color: var(--current-user-accent);
+            }
+            .participant.other-user {
+                background-color: var(--other-user-bg);
+                border-color: var(--other-user-accent);
+            }
+            #editor {
+                display: flex;
+                flex-grow: 1;
                 background: #fff;
-                width: 100%;
                 outline: none;
                 border: none;
-                padding: 1rem;
-                margin-bottom: 1rem;
                 border-radius: 0.25rem;
+                grid-area: D;
+                margin-bottom: 1rem;
+                padding: 0.5rem 1rem;
             }
         </style>
     </head>
     <body>
+        <div id="toasts">
+            <div id="replying" class="notification"></div>
+        </div>
         <div id="messages"></div>
-        <input type="text" id="messageInput" placeholder="Ask Cheryl" />
+        <div id="participants"></div>
+        <input
+            id="editor"
+            type="text"
+            id="messageInput"
+            placeholder="Ask Cheryl"
+        />
         <script>
-            var socket = io(); // Connect to the Socket.IO server
-            var messages = document.getElementById("messages");
-            var messageInput = document.getElementById("messageInput");
+            // Contants
+            const ROLE_USER = "user";
+            const ROLE_ASSISTANT = "assistant";
+            const CLIENT_ID_KEY = "clientID";
+            const KEY_USER_NAME = "userName";
 
-            socket.on("connect", function () {
-                console.log("Connected to server");
-            });
+            // State
+            const users = {};
+            const connectedUsersIDs = {};
 
-            socket.on("disconnect", function () {
-                console.log("Disconnected from server");
-            });
+            // Must be single qouted
+            // prettier-ignore
+            const initialMessages = JSON.parse('{{ initial_messages | tojson | safe }}');
 
-            const YOU = "user";
-            const CHERYL = "system";
-            function formatReply(message) {
-                const sender = (message.role = CHERYL ? "Cheryl" : "You");
-                return `<p>${sender}: ${message.message}</p>`;
+            // Must be single qouted
+            // prettier-ignore
+            const initialConnectedUserIDs = JSON.parse('{{ initial_connected_user_ids | tojson | safe }}')
+            for (const id of initialConnectedUserIDs) {
+                connectedUsersIDs[id] = true;
             }
 
-            socket.on("conversation_id_provisioned", function (data) {
-                conversationID = setConversationID(data.conversation_id);
+            // Must be single qouted
+            // prettier-ignore
+            const initialUsersOfConversation = JSON.parse('{{ initial_users_of_conversation | tojson | safe }}')
+            for (const user of initialUsersOfConversation) {
+                users[user.id] = user;
+            }
 
-                // NOTE: for persisted conversations the block below may be uncommented
-                // let conversationID = getConversationID();
-                // if (!conversationID) {
-                //     conversationID = setConversationID(data.conversation_id);
-                // }
-
-                socket.emit("authenticate", {
-                    conversation_id: conversationID,
-                });
+            // Variables
+            const toasts = document.getElementById("toasts");
+            const replying = document.getElementById("replying");
+            const messages = document.getElementById("messages");
+            const participants = document.getElementById("participants");
+            const editor = document.getElementById("editor");
+            const socket = io({
+                query: {
+                    user_id: getClientID(),
+                },
             });
 
-            socket.on("cheryl_replies", function (message) {
-                messages.innerHTML += formatReply(message);
-                messages.scrollTop = messages.scrollHeight;
-            });
+            // Functions
+            function setClientID(clientID) {
+                localStorage.setItem(CLIENT_ID_KEY, clientID);
+                return clientID;
+            }
 
-            socket.on("authentication_successful", function (data) {
-                for (message of data.messages) {
-                    messages.innerHTML += formatReply(message);
+            function getClientID() {
+                let clientID = localStorage.getItem(CLIENT_ID_KEY);
+                if (clientID == null) {
+                    setClientID(crypto.randomUUID());
                 }
-                messages.scrollTop = messages.scrollHeight;
-            });
+                return clientID;
+            }
 
-            messageInput.addEventListener("keypress", function (event) {
+            function getUserName(userID) {
+                let user = users[userID];
+                if (user == null) {
+                    console.log("user not found");
+                    return "unknown";
+                }
+                return user.name;
+            }
+
+            function sendMessage() {
+                const clientID = getClientID();
+                const body = editor.value;
+
+                socket.emit("user_authored_message", {
+                    user_id: clientID,
+                    body: body,
+                });
+
+                editor.value = "";
+            }
+
+            function createMessageElement(message) {
+                const classList = [
+                    "message",
+                    message.user_id == getClientID()
+                        ? "current-user"
+                        : "other-user",
+                ];
+                if (message.role == ROLE_ASSISTANT) {
+                    classList.push("assistant");
+                }
+
+                // Create the body element
+                const bodyEl = document.createElement("p");
+                bodyEl.innerHTML += message.message;
+                bodyEl.classList.add("body");
+
+                // Create the sender element
+                const senderEl = document.createElement("div");
+                senderEl.innerHTML += getUserName(message.user_id);
+                senderEl.classList.add("sender");
+
+                // Create the message element
+                const messageEl = document.createElement("div");
+                messageEl.appendChild(senderEl);
+                messageEl.appendChild(bodyEl);
+                messageEl.classList.add(...classList);
+
+                return messageEl;
+            }
+
+            function appendMessages(...msgs) {
+                const fragment = new DocumentFragment();
+                msgs.forEach((message) => {
+                    const el = createMessageElement(message);
+                    fragment.appendChild(el);
+                });
+                messages.appendChild(fragment);
+                messages.scrollTop = messages.scrollHeight;
+            }
+
+            function createParticipantElement(user) {
+                const participantClass =
+                    user.id == getClientID() ? "current-user" : "other-user";
+                const participantEl = document.createElement("div");
+                participantEl.innerHTML += getUserName(user.id);
+                participantEl.classList.add("participant", participantClass);
+                return participantEl;
+            }
+
+            function appendParticipants(...users) {
+                const fragment = new DocumentFragment();
+                users.forEach((user) => {
+                    const el = createParticipantElement(user);
+                    fragment.appendChild(el);
+                });
+                participants.appendChild(fragment);
+            }
+
+            function showReplyingTo({ user_id }) {
+                const user = users[user_id];
+                replying.innerHTML = `Cheryl is replying to ${user ? user.name : "someone"}`;
+                replying.classList.add("enabled");
+            }
+
+            function hideReplyingTo() {
+                replying.classList.remove("enabled");
+            }
+
+            // DOM event handlers
+            editor.addEventListener("keypress", function (event) {
                 if (event.key === "Enter") {
                     event.preventDefault();
                     sendMessage();
                 }
             });
 
-            const CONVERSATION_ID_KEY = "conversationID";
-            function setConversationID(conversationID) {
-                localStorage.setItem(CONVERSATION_ID_KEY, conversationID);
-                return conversationID;
-            }
+            document.addEventListener("DOMContentLoaded", (event) => {
+                appendMessages(...initialMessages);
 
-            function getConversationID() {
-                let conversationID = localStorage.getItem(CONVERSATION_ID_KEY);
-                if (conversationID == null) {
-                    throw new Error("Could not find any conversationID!");
+                appendParticipants(
+                    ...initialConnectedUserIDs.reduce((connectedUsers, id) => {
+                        const user = users[id];
+                        if (user) {
+                            connectedUsers.push(user);
+                        }
+                        return connectedUsers;
+                    }, []),
+                );
+            });
+
+            // Socket event handlers
+            socket.on("connect", function () {
+                console.group("Connected to server");
+                console.log({
+                    socketID: socket.id,
+                    userID: getClientID(),
+                });
+                console.groupEnd();
+
+                socket.emit("join", { user_id: getClientID() });
+            });
+
+            socket.on("user_connected", function (user) {
+                console.group("User connected");
+                console.log(user);
+
+                connectedUsersIDs[user.id] = true;
+                users[user.id] = user;
+
+                appendParticipants(user);
+
+                console.groupEnd();
+            });
+
+            socket.on("user_disconnected", function (user) {
+                console.group("User dicconnected");
+                console.log(user);
+
+                delete connectedUsersIDs[user.id];
+
+                console.groupEnd();
+            });
+
+            socket.on("message_created", function (message) {
+                console.group("Message created");
+                console.log(message);
+
+                appendMessages(message);
+
+                console.groupEnd();
+            });
+
+            socket.on("replying_to", function ({ user_id }) {
+                console.group("Replying to");
+
+                if (user_id) {
+                    showReplyingTo({ user_id });
+                } else {
+                    hideReplyingTo();
                 }
-                return conversationID;
-            }
 
-            function sendMessage() {
-                const conversationID = getConversationID();
-                var message = messageInput.value;
-                socket.emit("new_message", {
-                    data: message,
-                    conversation_id: conversationID,
-                }); // Send a message to the server
-                messages.innerHTML += "<p>You: " + message + "</p>";
-                messageInput.value = ""; // Clear the input field
-                messages.scrollTop = messages.scrollHeight; // Scroll to the bottom
-            }
+                console.groupEnd();
+            });
+
+            socket.on("disconnect", function () {
+                console.log("Disconnected from server");
+            });
         </script>
     </body>
 </html>

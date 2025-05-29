@@ -1,12 +1,30 @@
 from psycopg_pool import ConnectionPool
 import psycopg
-from src.models.concept import Concept
-from pydantic import ValidationError
-from psycopg.rows import TupleRow
+from src.models import Concept
+from psycopg.rows import TupleRow,class_row
 
-GET_CONCEPTS = """
-    SELECT id, concept, meaning FROM concepts;
+SELECT_CONCEPTS = """
+ SELECT
+    id,
+    timestamp,
+    concept,
+    meaning
+FROM concepts;
 """
+
+INSERT_CONCEPT = """
+INSERT INTO concepts (
+    id,
+    timestamp,
+    concept,
+    meaning
+) VALUES (%s, %s, %s, %s)
+RETURNING *;
+"""
+
+class ConceptInsertionError(Exception):
+    pass
+
 
 class ConceptsRepository:
     pool: ConnectionPool[psycopg.Connection[TupleRow]]
@@ -18,18 +36,28 @@ class ConceptsRepository:
         """
         Retrieves messages for a given conversation ID, optionally filtering by timestamp.
         """
+        with self.pool.connection() as conn:
+            with conn.cursor(row_factory=class_row(Concept)) as cur:
+                cur.execute(SELECT_CONCEPTS)
+                return cur.fetchall()
 
-        concepts: list[Concept] = []
-        try:
-            with self.pool.connection() as conn:
-                with conn.cursor() as cur:
-                    cur.execute(GET_CONCEPTS)
-                    for row in cur.fetchall():
-                        try:
-                            concept = Concept(id=row[0], concept=row[1], meaning=row[2])
-                            concepts.append(concept)
-                        except ValidationError as e:
-                            print(f"Validation error for concept: {row} - {e}")
-        except psycopg.Error as e:
-            print(f"Database error during startup: {e}")
-        return concepts
+    def create_concept(self, concept: Concept) -> Concept:
+        """
+        Create a new concept record
+        """
+        with self.pool.connection() as conn:
+            with conn.cursor(row_factory=class_row(Concept)) as cur:
+                cur.execute(
+                    INSERT_CONCEPT,
+                    (
+                        str(concept.id),
+                        concept.timestamp,
+                        concept.concept,
+                        concept.meaning,
+                    ),
+                )
+
+                new_reply = cur.fetchone()
+                if not new_reply:
+                    raise ConceptInsertionError("Failed to insert reply")
+                return new_reply

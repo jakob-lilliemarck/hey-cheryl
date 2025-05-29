@@ -15,9 +15,9 @@
             }
             body {
                 /* Assistant */
-                --assistant-h: 100;
-                --assistant-s: 20%;
-                --assistant-l: 82%;
+                --assistant-h: 280;
+                --assistant-s: 95%;
+                --assistant-l: 50%;
                 --assistant-accent: hsl(
                     var(--assistant-h),
                     var(--assistant-s),
@@ -26,7 +26,7 @@
                 --assistant-bg: hsl(
                     var(--assistant-h),
                     var(--assistant-s),
-                    calc(var(--assistant-l) + 15%)
+                    calc(var(--assistant-l) + 45%)
                 );
 
                 /* Other users */
@@ -118,7 +118,10 @@
                 font-size: 0.875rem;
                 color: #919191;
             }
-            .message.assistant > .sender::after {
+            .message.other-user.assistant > .sender {
+                color: var(--assistant-accent);
+            }
+            .message.other-user.assistant > .sender::after {
                 content: " says";
             }
             .message.current-user > .sender {
@@ -148,7 +151,9 @@
                 background-color: var(--other-user-bg);
                 border-color: var(--other-user-accent);
             }
-            .message.assistant {
+            .message.other-user.assistant > .body {
+                background-color: var(--assistant-bg);
+                border-color: var(--assistant-accent);
             }
             #participants {
                 grid-area: C;

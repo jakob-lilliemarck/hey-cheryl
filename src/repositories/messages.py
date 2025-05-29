@@ -45,10 +45,9 @@ INSERT_REPLY = """
         id,
         timestamp,
         message_id,
-        acknowledged,
-        published,
+        status,
         message
-    ) VALUES (%s, %s, %s, %s, %s, %s)
+    ) VALUES (%s, %s, %s, %s, %s)
     RETURNING *;
 """
 
@@ -57,16 +56,8 @@ SELECT *
 FROM latest_replies
 WHERE
     (
-	    %(acknowledged)s::BOOL IS NULL
-	    OR acknowledged = %(acknowledged)s::BOOL
-    )
-    AND (
-	    %(completed)s::BOOL IS NULL
-	    OR (message IS NOT NULL) = %(completed)s::BOOL
-    )
-	AND (
-	    %(published)s::BOOL IS NULL
-	    OR published = %(published)s::BOOL
+	    %(status)s::TEXT[] IS NULL
+	    OR status = ANY(%(status)s::TEXT[])
     )
 	AND (
 	    %(message_id)s::UUID IS NULL
@@ -170,9 +161,7 @@ class MessagesRepository:
     def get_replies(
         self,
         *,
-        acknowledged: bool | None,
-        completed: bool | None,
-        published: bool | None,
+        status: list[str] | None,
         message_id: UUID | None,
         limit: int
     ) -> list[Reply]:
@@ -182,9 +171,7 @@ class MessagesRepository:
         with self.pool.connection() as conn:
             with conn.cursor(row_factory=class_row(Reply)) as cur:
                 cur.execute(SELECT_REPLIES, {
-                    'acknowledged': acknowledged,
-                    'completed': completed,
-                    'published': published,
+                    'status': status,
                     'message_id': message_id,
                     'limit': limit
                 })
@@ -202,8 +189,7 @@ class MessagesRepository:
                         str(reply.id),
                         reply.timestamp,
                         str(reply.message_id),
-                        reply.acknowledged,
-                        reply.published,
+                        reply.status,
                         reply.message,
                     ),
                 )

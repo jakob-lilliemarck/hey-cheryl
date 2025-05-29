@@ -32,8 +32,7 @@ CREATE TABLE public.replies (
     id uuid NOT NULL,
     "timestamp" timestamp with time zone NOT NULL,
     message_id uuid NOT NULL,
-    acknowledged boolean NOT NULL,
-    published boolean NOT NULL,
+    status text NOT NULL,
     message text
 );
 
@@ -46,8 +45,7 @@ CREATE VIEW public.latest_replies AS
  SELECT DISTINCT ON (id) id,
     "timestamp",
     message_id,
-    acknowledged,
-    published,
+    status,
     message
    FROM public.replies
   ORDER BY id, "timestamp" DESC;

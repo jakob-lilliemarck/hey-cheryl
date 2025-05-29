@@ -12,20 +12,8 @@ from src.services.users import UsersService
 from src.services.messages import MessagesService
 from src.repositories.users import UsersRepository
 from uuid import UUID
-from threading import Thread
-from time import sleep
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-
-class MyApp(Flask):
-    pool: ConnectionPool[Connection[TupleRow]]
-    users_repository: UsersRepository
-    messages_repository: MessagesRepository
-    users_service: UsersService
-    messages_service: MessagesService
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
 
 config = Config.new_from_env()
 
@@ -60,6 +48,7 @@ class ReplyWithoutBodyError(Exception):
 # A lightweight polling loop to check on Cheryl
 def poll_for_replies():
     while True:
+        logging.info("Background: polling for messages to publish")
         timestamp = datetime.now(timezone.utc)
         reply = messages_service.get_next_reply_to_publish()
 
@@ -67,11 +56,10 @@ def poll_for_replies():
         if reply and reply.message:
             # Create a new message
             message = messages_service.create_assistant_message(
-                content="testing testing",
+                content=reply.message,
                 timestamp=timestamp,
             );
 
-            logging.info(f"emitting message {message}")
             # Emit the message
             io.emit(
                 'message_created',
@@ -92,10 +80,10 @@ def poll_for_replies():
                 to=str(config.CONVERSATION_ID)
             )
 
-        sleep(2)
+        io.sleep(2)
 
 # Start the loop
-Thread(target=poll_for_replies, daemon=True).start()
+io.start_background_task(target=poll_for_replies)
 
 @app.route('/')
 def index():
@@ -201,4 +189,5 @@ def on_disconnect():
 
 
 if __name__ == '__main__':
-    io.run(app, debug=True) # Set debug=False for production
+    # Debug = True makes the background task loop very flaky
+    io.run(app, debug=False)

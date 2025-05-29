@@ -36,12 +36,12 @@ messages_service = MessagesService(
 )
 
 
-def loop():
+def main():
     while True:
         logging.info("polling for messages to reply to")
-
-        timestamp = datetime.now(timezone.utc)
-        reply = messages_service.get_next_reply_in_queue()
+        reply = messages_service.get_next_enqueued_reply(
+            timestamp=datetime.now(timezone.utc)
+        )
 
         if reply:
             # --- --- --- --- --- --- --- --- --- --- --- ---
@@ -49,7 +49,7 @@ def loop():
             # --- --- --- --- --- --- --- --- --- --- --- ---
             messages_service.append_reply_content(
                 reply=reply,
-                timestamp=timestamp,
+                timestamp=datetime.now(timezone.utc),
                 content="testing testing"
             )
 
@@ -69,4 +69,4 @@ if __name__ == '__main__':
         timestamp=timestamp
     )
 
-    loop()
+    main()

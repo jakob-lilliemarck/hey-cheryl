@@ -26,8 +26,7 @@ class Reply(BaseModel):
     id: UUID
     timestamp: datetime
     message_id: UUID
-    acknowledged: bool
-    published: bool
+    status: str
     message: str | None
 
 class Concept(BaseModel):

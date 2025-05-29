@@ -6,6 +6,9 @@ from datetime import datetime
 from uuid import UUID, uuid4
 import logging
 
+def generate_name():
+    return get_random_name().replace('_', ' ').title()
+
 class UsersService():
     config: Config
     users_repository: UsersRepository
@@ -27,7 +30,7 @@ class UsersService():
         try:
             user = self.users_repository.get_user(user_id)
         except UserNotFoundError:
-            name = name if name else get_random_name()
+            name = name if name else generate_name()
             user = self.users_repository.create_user(User(
                 id=user_id,
                 name=name,

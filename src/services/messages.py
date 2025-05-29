@@ -8,6 +8,10 @@ import logging
 class ReplyWithoutBodyError(Exception):
     pass
 
+PENDING = 'pending'
+READY = 'ready'
+PUBLISHED = 'published'
+
 class MessagesService():
     config: Config
     messages_repository: MessagesRepository
@@ -64,9 +68,7 @@ class MessagesService():
     ) -> Reply | None:
         logging.info("MessagesService.enqueue_if_available: checking availability")
         replies_in_progress = self.messages_repository.get_replies(
-            acknowledged=True,
-            completed=False,
-            published=False,
+            status=[PENDING, READY], # TODO - or just PENDING maybe?
             message_id=None,
             limit=1
         );
@@ -82,10 +84,40 @@ class MessagesService():
             id=uuid4(),
             timestamp=timestamp,
             message_id=message_id,
-            acknowledged=False,
-            published=False,
+            status=PENDING,
             message=None,
         ));
+
+        return reply
+
+    def get_next_enqueued_reply(
+        self, *,
+        timestamp: datetime
+    ) -> Reply | None:
+        replies = self.messages_repository.get_replies(
+            status=[PENDING],
+            message_id=None,
+            limit=1
+        );
+
+        if not replies:
+            return
+
+        return replies[0]
+
+    def get_next_reply_to_publish(self) -> Reply | None:
+        replies = self.messages_repository.get_replies(
+            status=[READY],
+            message_id=None,
+            limit=1
+        );
+
+        if not replies:
+            return
+
+        reply = replies[0]
+        if not reply.message:
+            raise ReplyWithoutBodyError(f"reply with id {reply.id} is missing a message body")
 
         return reply
 
@@ -100,9 +132,8 @@ class MessagesService():
              id=reply.id,
              timestamp=timestamp,
              message_id=reply.message_id,
-             acknowledged=True,
-             published=reply.published,
-             message="Testing testing",
+             status=READY,
+             message=content,
         ));
         return reply
 
@@ -115,41 +146,7 @@ class MessagesService():
              id=reply.id,
              timestamp=timestamp,
              message_id=reply.message_id,
-             acknowledged=reply.acknowledged,
-             published=True,
+             status=PUBLISHED,
              message=reply.message,
         ));
-        return reply
-
-
-    def get_next_reply_in_queue(self) -> Reply | None:
-        replies = self.messages_repository.get_replies(
-            acknowledged=False,
-            completed=False,
-            published=False,
-            message_id=None,
-            limit=1
-        );
-
-        if not replies:
-            return
-
-        return replies[0]
-
-    def get_next_reply_to_publish(self) -> Reply | None:
-        replies = self.messages_repository.get_replies(
-            acknowledged=True,
-            completed=True,
-            published=False,
-            message_id=None, # None omits this filter
-            limit=1
-        );
-
-        if not replies:
-            return
-
-        reply = replies[0]
-        if not reply.message:
-            raise ReplyWithoutBodyError(f"reply with id {reply.id} is missing a message body")
-
         return reply

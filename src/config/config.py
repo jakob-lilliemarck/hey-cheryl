@@ -14,6 +14,7 @@ class Config:
     ASSISTANT_USER_ID: UUID
     ASSISTANT_SESSION_ID: UUID
     WITH_MOCKED_ASSISTANT: bool
+    DEBUG: bool
 
     def __init__(
         self,
@@ -26,7 +27,8 @@ class Config:
         conversation_id: UUID,
         assistant_user_id: UUID,
         assistant_session_id: UUID,
-        with_mocked_assistant: bool
+        with_mocked_assistant: bool,
+        debug: bool
     ):
         """Loads configuration from environment variables."""
         self.DATABASE_URL = database_url
@@ -38,6 +40,7 @@ class Config:
         self.ASSISTANT_SESSION_ID = assistant_session_id
         self.ASSISTANT_USER_ID = assistant_user_id
         self.WITH_MOCKED_ASSISTANT = with_mocked_assistant
+        self.DEBUG = debug
 
     @staticmethod
     def new_from_env():
@@ -50,7 +53,8 @@ class Config:
         conversation_id = Config._get_required_env_var("CONVERSATION_ID")
         assistant_user_id = Config._get_required_env_var("ASSISTANT_USER_ID")
         assistant_session_id = Config._get_required_env_var("ASSISTANT_SESSION_ID")
-        with_mocked_assistant = Config._get_required_env_var("WITH_MOCKED_ASSISTANT").lower()
+        with_mocked_assistant = Config._get_required_env_var("WITH_MOCKED_ASSISTANT")
+        debug = Config._get_required_env_var("DEBUG")
 
         return Config(
             database_url=database_url,
@@ -61,7 +65,8 @@ class Config:
             conversation_id=UUID(conversation_id),
             assistant_session_id=UUID(assistant_session_id),
             assistant_user_id=UUID(assistant_user_id),
-            with_mocked_assistant=with_mocked_assistant.lower() == 'true'
+            with_mocked_assistant=with_mocked_assistant.lower() == 'true',
+            debug = debug.lower() == 'true'
         )
 
     @staticmethod

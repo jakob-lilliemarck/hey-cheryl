@@ -190,4 +190,4 @@ def on_disconnect():
 
 if __name__ == '__main__':
     # Debug = True makes the background task loop very flaky
-    io.run(app, debug=True)
+    io.run(app, debug=config.DEBUG)

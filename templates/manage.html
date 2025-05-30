@@ -1,0 +1,31 @@
+<!doctype html>
+<html>
+    <head>
+        <title>Cheryl</title>
+        <script src="https://unpkg.com/socket.io-client@4.8.1/dist/socket.io.min.js"></script>
+        <meta content="width=device-width, initial-scale=1" name="viewport" />
+        <link
+            rel="stylesheet"
+            href="{{ url_for('static', filename='styles.css') }}"
+        />
+        <style></style>
+    </head>
+    <body>
+        <form>
+            <h2>System Prompt</h2>
+            <div>
+                <label label-for="system-prompt"">System prompt</label>
+                <textarea id="system-prompt">
+            </div>
+            <h2>Concepts</h2>
+            <div id="concepts">
+
+            </div>
+            <button type="submit">Save</button>
+        </form>
+    </body>
+    <script>
+      const concepts = document.getElementById("concepts");
+      function createConceptField() {}
+    </script>
+</html>

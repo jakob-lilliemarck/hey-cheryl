@@ -17,7 +17,7 @@
                 display: grid;
                 grid-template-columns: 1fr minmax(auto, 700px) 1fr;
                 grid-template-rows: 1fr minmax(auto, 5rem);
-                grid-template-areas: "A B C" "A D .";
+                grid-template-areas: "B B B" ". D .";
                 margin: 0;
             }
             #toasts {
@@ -46,13 +46,12 @@
             }
             #messages {
                 display: flex;
-                flex-direction: column;
-                flex-grow: 1;
                 flex-flow: column nowrap;
                 gap: var(--spacing-lg);
                 overflow-y: auto;
                 border-radius: 0 0 var(--border-radius) var(--border-radius);
                 grid-area: B;
+                padding: var(--spacing-md);
             }
             #messages > :first-child {
                 margin-top: auto;
@@ -131,7 +130,6 @@
             }
             #editor {
                 display: flex;
-                flex-grow: 1;
                 background: #fff;
                 outline: none;
                 border: none;

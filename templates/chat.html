@@ -1,102 +1,19 @@
 <!doctype html>
 <html>
     <head>
-        <title>Cheryl</title>
+        <title>👋 Cheryl</title>
         <script src="https://unpkg.com/socket.io-client@4.8.1/dist/socket.io.min.js"></script>
         <meta content="width=device-width, initial-scale=1" name="viewport" />
+        <link
+            rel="stylesheet"
+            href="{{ url_for('static', filename='styles.css') }}"
+        />
         <style>
-            :root {
-                --warn-h: 44;
-                --warn-s: 70%;
-                --warn-l: 60%;
-
-                --primary-h: 280;
-                --primary-s: 95%;
-                --primary-l: 50%;
-
-                --assistant-h: 280;
-                --assistant-s: 95%;
-                --assistant-l: 50%;
-
-                --other-user-h: 100;
-                --other-user-s: 20%;
-                --other-user-l: 82%;
-
-                --current-user-h: 100;
-                --current-user-s: 80%;
-                --current-user-l: 65%;
-
-                --color-bg: #f2f2f2;
-
-                --font-size-sm: 0.75rem;
-                --font-size-md: 0.875rem;
-
-                --border-radius: 0.5rem;
-
-                --gap-sm: 0.25rem;
-                --gap-md: 0.5rem;
-                --gap-lg: 1rem;
-            }
-            html {
-                font-family: Arial, sans-serif;
-                font-size: var(--font-size-md);
-                background: var(--color-bg);
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                height: 100%;
-                width: 100%;
-            }
             body {
-                --primary-accent: hsl(
-                    var(--primary-h),
-                    var(--primary-s),
-                    var(--primary-l)
-                );
-
-                --warn-accent: hsl(var(--warn-h), var(--warn-s), var(--warn-l));
-                --warn-bg: hsl(
-                    var(--warn-h),
-                    var(--warn-s),
-                    calc(var(--warn-l) + 25%)
-                );
-
-                --assistant-accent: hsl(
-                    var(--assistant-h),
-                    var(--assistant-s),
-                    var(--assistant-l)
-                );
-                --assistant-bg: hsl(
-                    var(--assistant-h),
-                    var(--assistant-s),
-                    calc(var(--assistant-l) + 45%)
-                );
-
-                --other-user-accent: hsl(
-                    var(--other-user-h),
-                    var(--other-user-s),
-                    var(--other-user-l)
-                );
-                --other-user-bg: hsl(
-                    var(--other-user-h),
-                    var(--other-user-s),
-                    calc(var(--other-user-l) + 15%)
-                );
-
-                --current-user-bg: hsl(
-                    var(--current-user-h),
-                    var(--current-user-s),
-                    calc(var(--current-user-l) + 25%)
-                );
-                --current-user-accent: hsl(
-                    var(--current-user-h),
-                    var(--current-user-s),
-                    var(--current-user-l)
-                );
                 height: 100%;
                 width: 100%;
                 flex-grow: 1;
-                gap: var(--gap-lg);
+                gap: var(--spacing-lg);
                 display: grid;
                 grid-template-columns: 1fr minmax(auto, 700px) 1fr;
                 grid-template-rows: 1fr minmax(auto, 5rem);
@@ -132,7 +49,7 @@
                 flex-direction: column;
                 flex-grow: 1;
                 flex-flow: column nowrap;
-                gap: var(--gap-lg);
+                gap: var(--spacing-lg);
                 background: #fff;
                 overflow-y: auto;
                 border-radius: 0 0 var(--border-radius) var(--border-radius);
@@ -143,7 +60,7 @@
                 margin-top: auto;
             }
             .message {
-                gap: var(--gap-sm);
+                gap: var(--spacing-sm);
                 display: grid;
                 grid-template-columns: 1rem 1fr 1rem;
                 grid-template-rows: min-content 1fr;
@@ -197,7 +114,7 @@
                 align-self: end;
                 display: flex;
                 flex-direction: column-reverse;
-                gap: var(--gap-md);
+                gap: var(--spacing-md);
             }
             .participant {
                 background: #fff;
@@ -249,7 +166,7 @@
             id="messageInput"
             rows="10"
             autofocus="true"
-            placeholder="👋 Hey Cheryl"
+            placeholder="👋 Cheryl"
         ></textarea>
         <script>
             // Contants

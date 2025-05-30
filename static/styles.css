@@ -1,0 +1,91 @@
+:root {
+    --warn-h: 44;
+    --warn-s: 70%;
+    --warn-l: 60%;
+
+    --primary-h: 280;
+    --primary-s: 95%;
+    --primary-l: 50%;
+
+    --assistant-h: 280;
+    --assistant-s: 95%;
+    --assistant-l: 50%;
+    --assistant-accent: hsl(
+        var(--assistant-h),
+        var(--assistant-s),
+        var(--assistant-l)
+    );
+    --assistant-bg: hsl(
+        var(--assistant-h),
+        var(--assistant-s),
+        calc(var(--assistant-l) + 45%)
+    );
+
+    --other-user-h: 100;
+    --other-user-s: 20%;
+    --other-user-l: 82%;
+    --other-user-accent: hsl(
+        var(--other-user-h),
+        var(--other-user-s),
+        var(--other-user-l)
+    );
+    --other-user-bg: hsl(
+        var(--other-user-h),
+        var(--other-user-s),
+        calc(var(--other-user-l) + 15%)
+    );
+
+    --current-user-h: 100;
+    --current-user-s: 80%;
+    --current-user-l: 65%;
+    --current-user-bg: hsl(
+        var(--current-user-h),
+        var(--current-user-s),
+        calc(var(--current-user-l) + 25%)
+    );
+    --current-user-accent: hsl(
+        var(--current-user-h),
+        var(--current-user-s),
+        var(--current-user-l)
+    );
+
+    --primary-accent: hsl(var(--primary-h), var(--primary-s), var(--primary-l));
+
+    --warn-accent: hsl(var(--warn-h), var(--warn-s), var(--warn-l));
+    --warn-bg: hsl(var(--warn-h), var(--warn-s), calc(var(--warn-l) + 25%));
+
+    --color-bg: #f2f2f2;
+    --faint: #919191;
+
+    --font-size-sm: 0.75rem;
+    --font-size-md: 0.875rem;
+
+    --border-radius: 0.5rem;
+
+    --spacing-sm: 0.25rem;
+    --spacing-md: 0.5rem;
+    --spacing-lg: 1rem;
+    --spacing-xl: 1.5rem;
+}
+html {
+    font-family: Arial, sans-serif;
+    font-size: var(--font-size-md);
+    background: var(--color-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    width: 100%;
+}
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p,
+li,
+ul {
+    margin: 0;
+    padding: 0;
+}

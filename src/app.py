@@ -36,7 +36,11 @@ messages_service = MessagesService(
     messages_repository=messages_repository
 )
 
-app = Flask(__name__, template_folder='../templates')
+app = Flask(
+    __name__,
+    template_folder='../templates',
+    static_folder='../static'
+)
 app.config['SECRET_KEY'] = config.SECRET_KEY
 app.config['SESSION_TYPE'] = config.SESSION_TYPE
 
@@ -86,7 +90,11 @@ def poll_for_replies():
 io.start_background_task(target=poll_for_replies)
 
 @app.route('/')
-def index():
+def about():
+    return render_template('about.html')
+
+@app.route('/chat')
+def chat():
     """Serves the main HTML page."""
     messages = messages_repository.get_messages(conversation_id=config.CONVERSATION_ID)
     user_ids_of_conversation = messages_repository.get_user_ids_of_conversation(conversation_id=config.CONVERSATION_ID)
@@ -99,7 +107,7 @@ def index():
     initial_users_of_conversation = [u.model_dump(mode='json') for u in users]
 
     return render_template(
-        'index.html',
+        'chat.html',
         initial_messages=initial_messages,
         initial_connected_user_ids=initial_connected_user_ids,
         initial_users_of_conversation=initial_users_of_conversation

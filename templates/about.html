@@ -1,0 +1,63 @@
+<!doctype html>
+<html>
+    <head>
+        <title>Cheryl</title>
+        <script src="https://unpkg.com/socket.io-client@4.8.1/dist/socket.io.min.js"></script>
+        <meta content="width=device-width, initial-scale=1" name="viewport" />
+        <link
+            rel="stylesheet"
+            href="{{ url_for('static', filename='styles.css') }}"
+        />
+        <style>
+            body {
+                max-width: 700px;
+                width: 100%;
+                background: #fff;
+                border-radius: var(--border-radius);
+                padding: var(--spacing-xl);
+                display: flex;
+                flex-direction: column;
+                gap: var(--spacing-xl);
+                font-size: 1rem;
+            }
+            a {
+                display: inline-block;
+                align-self: center;
+                background: var(--assistant-bg);
+                color: var(--assistant-accent);
+                border-width: 1px;
+                border-style: solid;
+                border-color: var(--assistant-accent);
+                border-radius: var(--border-radius);
+                padding: var(--spacing-md) var(--spacing-lg);
+            }
+            a:active {
+                color
+            }
+            .signature {
+                color: var(--faint);
+                align-self: end;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>👋 Cheryl</h1>
+        <p>
+            Thank you for your inspiring and insightful perspective, and for
+            your ever-enthusiastic spirit. I've learned so much from you!
+        </p>
+        <p>
+            You're leaving a void of knowledge behind at Konstfack, and though
+            it may seem naive, I wanted to honor you by attempting to amend
+            that. After all, what better way to celebrate your lifelong career
+            of academic excellence than by creatively exploring and learning
+            about something new?
+        </p>
+        <p>
+            As such, I present to you Hey-Cheryl a faint and quirky digital echo
+            of our beloved professor.
+        </p>
+        <a href="{{ url_for('chat') }}">Chat with Cheryl</a>
+        <p class="signature">Jakob Lilliemarck</p>
+    </body>
+</html>

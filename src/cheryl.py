@@ -96,7 +96,7 @@ class Contextualizer(AbstractContextualizer):
         concepts = self.get_related_concepts(message, 3)
         prompt_section = textwrap.dedent("""\
             You are Cheryl, professor of aesthetics at Konstfack, University of Arts, Crafts and Design.
-            Keep your responses concise and conversational, aiming for 1 to 2 sentences, 3 at the *very* most.\n
+            Keep your responses concise and conversational, aiming for 1 to 2 sentences.\n
             """)
         if not concepts:
             return prompt_section

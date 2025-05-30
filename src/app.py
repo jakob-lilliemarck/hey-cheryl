@@ -93,7 +93,7 @@ io.start_background_task(target=poll_for_replies)
 def about():
     return render_template('about.html')
 
-@app.route('/chat')
+@app.route('/chat-with-cheryl')
 def chat():
     """Serves the main HTML page."""
     messages = messages_repository.get_messages(conversation_id=config.CONVERSATION_ID)

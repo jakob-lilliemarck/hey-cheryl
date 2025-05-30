@@ -265,20 +265,24 @@
             // Must be single qouted
             // prettier-ignore
             const initialMessages = {{ initial_messages | tojson | safe }};
+            console.log(initialMessages)
 
             // Must be single qouted
             // prettier-ignore
-            const initialConnectedUserIDs = '{{ initial_connected_user_ids | tojson | safe }}'
+            const initialConnectedUserIDs = {{ initial_connected_user_ids | tojson | safe }}
             for (const id of initialConnectedUserIDs) {
                 connectedUsersIDs[id] = true;
             }
 
             // Must be single qouted
             // prettier-ignore
-            const initialUsersOfConversation = '{{ initial_users_of_conversation | tojson | safe }}'
+            const initialUsersOfConversation = {{ initial_users_of_conversation | tojson | safe }}
             for (const user of initialUsersOfConversation) {
                 users[user.id] = user;
             }
+
+            console.log(connectedUsersIDs)
+            console.log(users)
 
             // Variables
             const toasts = document.getElementById("toasts");

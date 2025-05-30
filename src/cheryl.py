@@ -143,7 +143,8 @@ class Assistant(AbstractAssistant):
         prompt = self.tokenizer.apply_chat_template(
             templated,
             tokenize=False,
-            add_generation_prompt=True
+            add_generation_prompt=True,
+            enable_thinking=False
         )
 
         input = self.tokenizer.encode(

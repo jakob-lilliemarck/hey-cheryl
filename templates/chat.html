@@ -47,24 +47,25 @@
             #messages {
                 display: flex;
                 flex-flow: column nowrap;
-                gap: var(--spacing-lg);
+                gap: var(--spacing-xl);
                 overflow-y: auto;
                 border-radius: 0 0 var(--border-radius) var(--border-radius);
                 grid-area: B;
-                padding: var(--spacing-md);
+                padding: 0 var(--spacing-lg);
             }
             #messages > :first-child {
                 margin-top: auto;
             }
             .message {
-                gap: var(--spacing-sm);
+                gap: var(--spacing-xs);
                 display: grid;
-                grid-template-columns: 1rem 1fr 1rem;
+                grid-template-columns:
+                    calc(var(--spacing-md) + var(--spacing-xs))
+                    1fr calc(var(--spacing-md) + var(--spacing-xs));
                 grid-template-rows: min-content 1fr;
                 grid-template-areas: "A B C" "D E F";
             }
             .message > .sender {
-                margin-left: 0.5rem;
                 font-size: var(--font-size-sm);
                 color: #919191;
                 grid-column: B;

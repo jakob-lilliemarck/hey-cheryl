@@ -17,7 +17,7 @@ from src.services.concepts import ConceptsService
 from uuid import UUID
 from functools import wraps
 import re
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Optional, Iterable
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -124,68 +124,90 @@ def requires_auth(f):
         return f(*args, **kwargs)
     return decorated
 
+CONCEPT_KEY_PATTERN = re.compile(r"concept\(([\w-]+)\)-(\w+)")
+PROMPT_KEYS = [spk.value for spk in SystemPromptKey]
+
+def parse_concept_key(key: str) -> Optional[Tuple[UUID, str]]:
+    m = CONCEPT_KEY_PATTERN.match(key)
+    if not m:
+        return None
+
+    field = m.group(2)
+    if field not in ["term", "meaning"]:
+        raise ValueError(f"invalid concept field type '{field}' in key '{key}'. Expected 'term' or 'meaning'")
+
+    id = UUID(m.group(1))
+
+    return id, field
+
+def parse_prompt_key(key: str) -> Optional[str]:
+    if key in PROMPT_KEYS:
+        return key
+
+    return None
+
+def parse_form(
+    data: Iterable[Tuple[str, str]]
+) -> Tuple[List[Tuple[str, str]], List[Tuple[UUID, str, str]]]:
+    prompts: List[Tuple[str, str]] = []
+    concepts_data: Dict[UUID, Dict[str, str]] = {}
+
+    for key, value in data:
+        value = value.strip()
+
+        concept = parse_concept_key(key)
+        if concept:
+            id, field = concept
+            if id not in concepts_data:
+                concepts_data[id] = {}
+
+            concepts_data[id][field] = value
+            continue
+
+        prompt_key = parse_prompt_key(key)
+        if prompt_key:
+            prompts.append((key, value))
+
+    concepts: List[Tuple[UUID, str, str]] = []
+    for id, fields in concepts_data.items():
+        term = fields.get('term')
+        if term is None:
+            raise ValueError("term may not be None")
+
+        meaning = fields.get('meaning')
+        if meaning is None:
+            raise ValueError("meaning may not be None")
+
+        concepts.append((id, term, meaning))
+
+    return prompts, concepts
+
 
 @app.route('/manage', methods=['GET', 'POST'])
 @requires_auth
 def manage():
     if request.method == 'POST':
-        logging.info(f"POST request received: {request.form}")
-
         now = datetime.now(timezone.utc)
+        prompt_args, concept_args = parse_form(request.form.items())
 
-        concept_key_pattern = re.compile(r"concept\(([\w-]+)\)-(\w+)")
-
-        # A list of all system prompts
-        prompt_ids = [SystemPromptKey.BASE.value]
-
-        # A hash to collect system prompts
-        prompts: List[Tuple[str, str]] = []
-
-        # A hash to concepts
-        concepts_data: Dict[UUID, Dict[str, str]] = {}
-
-        for key, value in request.form.items():
-            value = value.strip()
-            match = concept_key_pattern.match(key)
-            if match:
-                concept_id = UUID(match.group(1))
-                field_type = match.group(2)
-
-                if concept_id not in concepts_data:
-                    concepts_data[concept_id] = {}
-
-                if field_type == 'key':
-                    concepts_data[concept_id]['term'] = value
-                elif field_type == 'value':
-                    concepts_data[concept_id]['meaning'] = value
-                else:
-                    logging.warning(f"Unknown field_type '{field_type}' for concept key '{key}'")
-
-            # System prompts are part of the code.
-            # We only accept known prompt ids defined by the host
-            if key in prompt_ids:
-                prompts.append((key, value))
-
-        concepts: List[Tuple[UUID, str, str]] = []
-        for id in concepts_data:
-            concepts.append((
-                id,
-                concepts_data[id]['term'],
-                concepts_data[id]['meaning'],
-            ))
-
-        _ = concepts_service.sync_concepts(
+        system_prompts = concepts_service.sync_concepts(
             timestamp=now,
-            concepts=concepts,
+            concepts=concept_args,
         )
-
-        _ = concepts_service.update_system_prompts(
+        concepts = concepts_service.update_system_prompts(
             timestamp=now,
-            prompts=prompts,
+            prompts=prompt_args,
         )
+    else:
+        system_prompts = system_prompts_repository.get_system_prompts()
+        concepts = concepts_repository.get_concepts()
 
-    # TODO: pass data to the template!!
-    return render_template('manage.html')
+    return render_template(
+        'manage.html',
+        system_prompts=[sp.model_dump(mode='json') for sp in system_prompts],
+        concepts=[c.model_dump(mode='json') for c in concepts]
+    )
+
 
 @app.route('/chat-with-cheryl')
 def chat():

@@ -54,7 +54,7 @@ class ConceptsService():
                 timestamp=timestamp,
                 concept=concept,
                 meaning=meaning,
-                deleted=True
+                deleted=False
             )
 
         return self.concepts_repository.upsert_concepts(list(to_upsert.values()))

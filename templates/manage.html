@@ -93,8 +93,13 @@
         </form>
     </body>
     <script>
-        const concepts = document.getElementById("concepts");
-        const newConcept = document.getElementById("newConcept");
+        const conceptsEl = document.getElementById("concepts");
+        const newConceptEl = document.getElementById("newConcept");
+
+        const concepts = {{ concepts | tojson | safe }};
+        const systemPrompts = {{ system_prompts | tojson | safe }};
+        console.log(concepts)
+        console.log(systemPrompts)
 
         function createLabelEl(label, child) {
             const el = document.createElement("label");
@@ -129,14 +134,14 @@
             const fragment = new DocumentFragment();
             fragment.appendChild(
                 createLabelEl(
-                    "concept",
-                    createInputEl(`concept(${id})-key`, key),
+                    "term",
+                    createInputEl(`concept(${id})-term`, key),
                 ),
             );
             fragment.appendChild(
                 createLabelEl(
                     "meaning",
-                    createTextareaEl(`concept(${id})-value`, value),
+                    createTextareaEl(`concept(${id})-meaning`, value),
                 ),
             );
             return fragment;
@@ -156,7 +161,7 @@
                 return fragment;
             }, new DocumentFragment());
 
-            concepts.insertBefore(fragment, newConcept);
+            conceptsEl.insertBefore(fragment, newConceptEl);
         }
 
         function appendElements(containerID, ...elements) {
@@ -189,7 +194,7 @@
             );
         });
 
-        newConcept.addEventListener("click", function (e) {
+        newConceptEl.addEventListener("click", function (e) {
             e.preventDefault();
             insertConceptFields(
                 ...cpts.map((c) =>

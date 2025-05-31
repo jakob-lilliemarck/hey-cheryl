@@ -190,13 +190,13 @@ def manage():
         now = datetime.now(timezone.utc)
         prompt_args, concept_args = parse_form(request.form.items())
 
-        system_prompts = concepts_service.sync_concepts(
-            timestamp=now,
-            concepts=concept_args,
-        )
-        concepts = concepts_service.update_system_prompts(
+        system_prompts = concepts_service.update_system_prompts(
             timestamp=now,
             prompts=prompt_args,
+        )
+        concepts = concepts_service.sync_concepts(
+            timestamp=now,
+            concepts=concept_args,
         )
     else:
         system_prompts = system_prompts_repository.get_system_prompts()

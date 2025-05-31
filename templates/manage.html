@@ -95,11 +95,8 @@
     <script>
         const conceptsEl = document.getElementById("concepts");
         const newConceptEl = document.getElementById("newConcept");
-
         const concepts = {{ concepts | tojson | safe }};
         const systemPrompts = {{ system_prompts | tojson | safe }};
-        console.log(concepts)
-        console.log(systemPrompts)
 
         function createLabelEl(label, child) {
             const el = document.createElement("label");
@@ -178,18 +175,23 @@
         document.addEventListener("DOMContentLoaded", (event) => {
             const fragment = new DocumentFragment();
 
-            prompts = [{ key: "base", value: "value" }];
             appendElements(
                 "system-prompts",
-                ...prompts.map((c) =>
-                    createSystemPromptElement(c.key, c.value),
+                ...systemPrompts.map((sp) =>
+                    createSystemPromptElement(
+                      sp.key,
+                      sp.prompt
+                    ),
                 ),
             );
 
-            cpts = [{ key: "key", value: "value", id: crypto.randomUUID() }];
             insertConceptFields(
-                ...cpts.map((c) =>
-                    createConceptFieldElement(c.id, c.key, c.value),
+                ...concepts.map((c) =>
+                    createConceptFieldElement(
+                      c.id,
+                      c.concept,
+                      c.meaning
+                    ),
                 ),
             );
         });

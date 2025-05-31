@@ -50,6 +50,11 @@
     );
 
     --primary-accent: hsl(var(--primary-h), var(--primary-s), var(--primary-l));
+    --primary-bg: hsl(
+        var(--primary-h),
+        var(--primary-s),
+        calc(var(--primary-l) + 45%)
+    );
 
     --warn-accent: hsl(var(--warn-h), var(--warn-s), var(--warn-l));
     --warn-bg: hsl(var(--warn-h), var(--warn-s), calc(var(--warn-l) + 25%));
@@ -86,7 +91,13 @@ h5,
 h6,
 p,
 li,
-ul {
+ul,
+textarea {
     margin: 0;
     padding: 0;
+}
+
+button {
+    outline: none;
+    border: none;
 }

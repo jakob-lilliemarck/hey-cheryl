@@ -14,6 +14,8 @@ class Config:
     ASSISTANT_USER_ID: UUID
     ASSISTANT_SESSION_ID: UUID
     WITH_MOCKED_ASSISTANT: bool
+    ADMIN_USERNAME: str
+    ADMIN_PASSWORD: str
     DEBUG: bool
 
     def __init__(
@@ -28,6 +30,8 @@ class Config:
         assistant_user_id: UUID,
         assistant_session_id: UUID,
         with_mocked_assistant: bool,
+        admin_username: str,
+        admin_password,
         debug: bool
     ):
         """Loads configuration from environment variables."""
@@ -40,6 +44,8 @@ class Config:
         self.ASSISTANT_SESSION_ID = assistant_session_id
         self.ASSISTANT_USER_ID = assistant_user_id
         self.WITH_MOCKED_ASSISTANT = with_mocked_assistant
+        self.ADMIN_USERNAME = admin_username
+        self.ADMIN_PASSWORD = admin_password
         self.DEBUG = debug
 
     @staticmethod
@@ -54,6 +60,8 @@ class Config:
         assistant_user_id = Config._get_required_env_var("ASSISTANT_USER_ID")
         assistant_session_id = Config._get_required_env_var("ASSISTANT_SESSION_ID")
         with_mocked_assistant = Config._get_required_env_var("WITH_MOCKED_ASSISTANT")
+        admin_username = Config._get_required_env_var("ADMIN_USERNAME")
+        admin_password = Config._get_required_env_var("ADMIN_PASSWORD")
         debug = Config._get_required_env_var("DEBUG")
 
         return Config(
@@ -66,6 +74,8 @@ class Config:
             assistant_session_id=UUID(assistant_session_id),
             assistant_user_id=UUID(assistant_user_id),
             with_mocked_assistant=with_mocked_assistant.lower() == 'true',
+            admin_username=admin_username,
+            admin_password=admin_password,
             debug = debug.lower() == 'true'
         )
 

@@ -8,24 +8,194 @@
             rel="stylesheet"
             href="{{ url_for('static', filename='styles.css') }}"
         />
-        <style></style>
+        <style>
+            form {
+                display: flex;
+                flex-grow: 1;
+                flex-direction: column;
+                gap: var(--spacing-xl);
+            }
+
+            fieldset {
+                display: flex;
+                flex-grow: 1;
+                flex-direction: column;
+                gap: var(--spacing-lg);
+                padding: var(--spacing-lg);
+                border-color: var(--primary-accent);
+                background-color: var(--primary-bg);
+            }
+
+            legend {
+                border-width: 1px;
+                border-style: solid;
+                border-color: var(--primary-accent);
+                background-color: var(--color-bg);
+                padding: var(--spacing-sm) var(--spacing-md);
+            }
+
+            .label {
+                display: flex;
+                flex-direction: column;
+                gap: var(--spacing-sm);
+                color: var(--primary-accent);
+            }
+
+            #system-prompts {
+            }
+
+            #system-prompts.label {
+            }
+
+            #system-prompts.input {
+            }
+
+            #concepts {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                grid-auto-rows: min-content;
+            }
+
+            #concepts.label {
+            }
+
+            #concepts.input {
+            }
+
+            button {
+                border-style: solid;
+                border-color: var(--primary-accent);
+                border-width: 1px;
+                border-radius: var(--border-radius);
+                background-color: #fff;
+                padding: var(--spacing-sm) var(--spacing-md);
+            }
+
+            #newConcept {
+                grid-column-start: 1;
+                grid-column-end: 2;
+            }
+        </style>
     </head>
     <body>
-        <form>
-            <h2>System Prompt</h2>
-            <div>
-                <label label-for="system-prompt"">System prompt</label>
-                <textarea id="system-prompt">
-            </div>
-            <h2>Concepts</h2>
-            <div id="concepts">
+        <form method="POST">
+            <fieldset id="system-prompts">
+                <legend>System prompts</legend>
+            </fieldset>
 
-            </div>
-            <button type="submit">Save</button>
+            <fieldset id="concepts">
+                <legend>Concepts</legend>
+                <button type="button" id="newConcept" @click="onNewConcept">
+                    New concept
+                </button>
+            </fieldset>
+            <button type="submit">Save changes</button>
         </form>
     </body>
     <script>
-      const concepts = document.getElementById("concepts");
-      function createConceptField() {}
+        const concepts = document.getElementById("concepts");
+        const newConcept = document.getElementById("newConcept");
+
+        function createLabelEl(label, child) {
+            const el = document.createElement("label");
+            el.classList.add("label");
+            el.innerHTML = label;
+            el.appendChild(child);
+            return el;
+        }
+
+        function createInputEl(fieldName, value) {
+            const el = document.createElement("input");
+            el.classList.add("input");
+            el.type = "text";
+            el.setAttribute("name", fieldName);
+            if (value !== null && value !== undefined) {
+                el.setAttribute("value", value);
+            }
+            return el;
+        }
+
+        function createTextareaEl(fieldName, value) {
+            const el = document.createElement("textarea");
+            el.classList.add("input");
+            el.setAttribute("name", fieldName);
+            if (value !== null && value !== undefined) {
+                el.value = value;
+            }
+            return el;
+        }
+
+        function createConceptFieldElement(id, key, value) {
+            const fragment = new DocumentFragment();
+            fragment.appendChild(
+                createLabelEl(
+                    "concept",
+                    createInputEl(`concept(${id})-key`, key),
+                ),
+            );
+            fragment.appendChild(
+                createLabelEl(
+                    "meaning",
+                    createTextareaEl(`concept(${id})-value`, value),
+                ),
+            );
+            return fragment;
+        }
+
+        function createSystemPromptElement(key, value) {
+            const fragment = new DocumentFragment();
+            fragment.appendChild(
+                createLabelEl(key, createTextareaEl(key, value)),
+            );
+            return fragment;
+        }
+
+        function insertConceptFields(...elements) {
+            const fragment = elements.reduce((fragment, el) => {
+                fragment.appendChild(el);
+                return fragment;
+            }, new DocumentFragment());
+
+            concepts.insertBefore(fragment, newConcept);
+        }
+
+        function appendElements(containerID, ...elements) {
+            const el = document.getElementById(containerID);
+
+            const fragment = new DocumentFragment();
+            elements.forEach((el) => {
+                fragment.appendChild(el);
+            });
+
+            el.appendChild(fragment);
+        }
+
+        document.addEventListener("DOMContentLoaded", (event) => {
+            const fragment = new DocumentFragment();
+
+            prompts = [{ key: "base", value: "value" }];
+            appendElements(
+                "system-prompts",
+                ...prompts.map((c) =>
+                    createSystemPromptElement(c.key, c.value),
+                ),
+            );
+
+            cpts = [{ key: "key", value: "value", id: crypto.randomUUID() }];
+            insertConceptFields(
+                ...cpts.map((c) =>
+                    createConceptFieldElement(c.id, c.key, c.value),
+                ),
+            );
+        });
+
+        newConcept.addEventListener("click", function (e) {
+            e.preventDefault();
+            insertConceptFields(
+                ...cpts.map((c) =>
+                    createConceptFieldElement(crypto.randomUUID(), null, null),
+                ),
+            );
+        });
     </script>
 </html>

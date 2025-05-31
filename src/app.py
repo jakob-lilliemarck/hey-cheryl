@@ -1,17 +1,21 @@
-from flask import Flask, render_template, session, request
+from flask import Flask, render_template, session, request, Response
 from flask_socketio import SocketIO, join_room, leave_room
 from src.config.config import Config
 import logging
-from src.models import ReplyingTo
+from src.models import ReplyingTo, Concept, SystemPrompt, SystemPromptKey
 from datetime import datetime, timezone
 from psycopg_pool import ConnectionPool
 from psycopg import Connection
 from psycopg.rows import TupleRow
 from src.repositories.messages import MessagesRepository
+from src.repositories.concepts import ConceptsRepository
 from src.services.users import UsersService
 from src.services.messages import MessagesService
 from src.repositories.users import UsersRepository
 from uuid import UUID
+from functools import wraps
+import re
+from typing import List, Dict
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -25,6 +29,7 @@ pool = ConnectionPool(
 # Repositories
 users_repository = UsersRepository(pool)
 messages_repository = MessagesRepository(pool)
+concepts_repository = ConceptsRepository(pool)
 
 # Services
 users_service = UsersService(
@@ -92,6 +97,83 @@ io.start_background_task(target=poll_for_replies)
 @app.route('/')
 def about():
     return render_template('about.html')
+
+def check_auth(username, password):
+    return username == config.ADMIN_USERNAME and password == config.ADMIN_PASSWORD
+
+def authenticate():
+    return Response(
+    'Could not verify your access level for that URL.\n'
+    'You have to login with proper credentials', 401,
+    {'WWW-Authenticate': 'Basic realm="Login Required"'})
+
+def requires_auth(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        auth = request.authorization
+        if not auth or not check_auth(auth.username, auth.password):
+            return authenticate()
+        return f(*args, **kwargs)
+    return decorated
+
+
+@app.route('/manage', methods=['GET', 'POST'])
+@requires_auth
+def manage():
+    if request.method == 'POST':
+        logging.info(f"POST request received: {request.form}")
+
+        now = datetime.now(timezone.utc)
+
+        concept_key_pattern = re.compile(r"concept\(([\w-]+)\)-(\w+)")
+
+        # A list of all system prompts
+        prompt_ids = [SystemPromptKey.BASE.value]
+
+        # A hash to collect system prompts
+        system_prompts: List[SystemPrompt] = []
+
+        # A hash to concepts
+        concepts_data: Dict[UUID, Dict[str, str]] = {}
+
+        for key, value in request.form.items():
+            value = value.strip()
+            match = concept_key_pattern.match(key)
+            if match:
+                concept_id = UUID(match.group(1))
+                field_type = match.group(2)
+
+                if concept_id not in concepts_data:
+                    concepts_data[concept_id] = {}
+
+                if field_type == 'key':
+                    concepts_data[concept_id]['term'] = value
+                elif field_type == 'value':
+                    concepts_data[concept_id]['meaning'] = value
+                else:
+                    logging.warning(f"Unknown field_type '{field_type}' for concept key '{key}'")
+
+            # System prompts are part of the code.
+            # We only accept known prompt ids defined by the host
+            if key in prompt_ids:
+                system_prompts.append(SystemPrompt(
+                    key=SystemPromptKey(key),
+                    prompt=value
+                ))
+
+        concepts: List[Concept] = []
+        for id in concepts_data:
+            concepts.append(Concept(
+                id=id,
+                concept=concepts_data[id]['term'],
+                meaning=concepts_data[id]['meaning'],
+                timestamp=now
+            ))
+
+        logging.info(f"prompts: {system_prompts}")
+        logging.info(f"concepts: {concepts}")
+
+    return render_template('manage.html')
 
 @app.route('/chat-with-cheryl')
 def chat():

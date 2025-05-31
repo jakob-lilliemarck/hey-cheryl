@@ -2,20 +2,22 @@ from flask import Flask, render_template, session, request, Response
 from flask_socketio import SocketIO, join_room, leave_room
 from src.config.config import Config
 import logging
-from src.models import ReplyingTo, Concept, SystemPrompt, SystemPromptKey
+from src.models import ReplyingTo, SystemPromptKey
 from datetime import datetime, timezone
 from psycopg_pool import ConnectionPool
 from psycopg import Connection
 from psycopg.rows import TupleRow
+from src.repositories.users import UsersRepository
 from src.repositories.messages import MessagesRepository
 from src.repositories.concepts import ConceptsRepository
+from src.repositories.system_prompts import SystemPromptsRepository
 from src.services.users import UsersService
 from src.services.messages import MessagesService
-from src.repositories.users import UsersRepository
+from src.services.concepts import ConceptsService
 from uuid import UUID
 from functools import wraps
 import re
-from typing import List, Dict
+from typing import List, Dict, Tuple
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -30,6 +32,7 @@ pool = ConnectionPool(
 users_repository = UsersRepository(pool)
 messages_repository = MessagesRepository(pool)
 concepts_repository = ConceptsRepository(pool)
+system_prompts_repository = SystemPromptsRepository(pool)
 
 # Services
 users_service = UsersService(
@@ -39,6 +42,11 @@ users_service = UsersService(
 messages_service = MessagesService(
     config=config,
     messages_repository=messages_repository
+)
+concepts_service = ConceptsService(
+    config=config,
+    concepts_repository=concepts_repository,
+    system_prompts_repository=system_prompts_repository
 )
 
 app = Flask(
@@ -131,7 +139,7 @@ def manage():
         prompt_ids = [SystemPromptKey.BASE.value]
 
         # A hash to collect system prompts
-        system_prompts: List[SystemPrompt] = []
+        prompts: List[Tuple[str, str]] = []
 
         # A hash to concepts
         concepts_data: Dict[UUID, Dict[str, str]] = {}
@@ -156,23 +164,27 @@ def manage():
             # System prompts are part of the code.
             # We only accept known prompt ids defined by the host
             if key in prompt_ids:
-                system_prompts.append(SystemPrompt(
-                    key=SystemPromptKey(key),
-                    prompt=value
-                ))
+                prompts.append((key, value))
 
-        concepts: List[Concept] = []
+        concepts: List[Tuple[UUID, str, str]] = []
         for id in concepts_data:
-            concepts.append(Concept(
-                id=id,
-                concept=concepts_data[id]['term'],
-                meaning=concepts_data[id]['meaning'],
-                timestamp=now
+            concepts.append((
+                id,
+                concepts_data[id]['term'],
+                concepts_data[id]['meaning'],
             ))
 
-        logging.info(f"prompts: {system_prompts}")
-        logging.info(f"concepts: {concepts}")
+        _ = concepts_service.sync_concepts(
+            timestamp=now,
+            concepts=concepts,
+        )
 
+        _ = concepts_service.update_system_prompts(
+            timestamp=now,
+            prompts=prompts,
+        )
+
+    # TODO: pass data to the template!!
     return render_template('manage.html')
 
 @app.route('/chat-with-cheryl')

@@ -1,21 +1,41 @@
 from psycopg_pool import ConnectionPool
 import psycopg
-from src.models import SystemPrompt
+from src.models import SystemPrompt, SystemPromptKey
 from psycopg.rows import TupleRow,class_row
-
+from typing import List
+from datetime import datetime
 
 SELECT_SYSTEM_PROMPT = """
 SELECT
     key,
-    prompt
+    prompt,
+    timestamp
 FROM latest_system_prompts
 WHERE key = %s;
+"""
+
+BATCH_INSERT_SYSTEM_PROMPTS = """
+INSERT INTO system_prompts (
+    key,
+    prompt,
+    timestamp
+)
+SELECT *
+FROM UNNEST(
+    %s::TEXT[],
+    %s::TEXT[],
+    %s::TIMESTAMPTZ[]
+)
+RETURNING *
 """
 
 class SystemPromptNotFound(Exception):
     pass
 
-class MessagesRepository:
+class SystemPromptInsertionError(Exception):
+    pass
+
+class SystemPromptsRepository:
     pool: ConnectionPool[psycopg.Connection[TupleRow]]
 
     def __init__(self, pool: ConnectionPool[psycopg.Connection[TupleRow]]):
@@ -36,3 +56,27 @@ class MessagesRepository:
                 if not message:
                     raise SystemPromptNotFound(f"SystemPrompt {key} not found")
                 return message
+
+    def upsert_system_prompts(
+        self, *,
+        system_prompts: List[SystemPrompt]
+    ) -> List[SystemPrompt]:
+        if not system_prompts:
+            return []
+
+        keys: List[str] = []
+        prompts: List[str] = []
+        timestamps: List[datetime] = []
+        for sp in system_prompts:
+            keys.append(sp.key.value)
+            prompts.append(sp.prompt)
+            timestamps.append(sp.timestamp)
+
+        with self.pool.connection() as conn:
+            with conn.cursor(row_factory=class_row(SystemPrompt)) as cur:
+                params = (keys, prompts, timestamps)
+                cur.execute(
+                    BATCH_INSERT_SYSTEM_PROMPTS,
+                    params
+                )
+                return cur.fetchall()

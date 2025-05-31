@@ -21,7 +21,8 @@ CREATE TABLE public.concepts (
     id uuid NOT NULL,
     "timestamp" timestamp with time zone NOT NULL,
     concept text NOT NULL,
-    meaning text NOT NULL
+    meaning text NOT NULL,
+    deleted boolean NOT NULL
 );
 
 
@@ -30,12 +31,19 @@ CREATE TABLE public.concepts (
 --
 
 CREATE VIEW public.latest_concepts AS
- SELECT DISTINCT ON (id) id,
+ SELECT id,
     "timestamp",
     concept,
-    meaning
-   FROM public.concepts
-  ORDER BY id, "timestamp" DESC;
+    meaning,
+    deleted
+   FROM ( SELECT DISTINCT ON (concepts.id) concepts.id,
+            concepts."timestamp",
+            concepts.concept,
+            concepts.meaning,
+            concepts.deleted
+           FROM public.concepts
+          ORDER BY concepts.id, concepts."timestamp" DESC) unnamed_subquery
+  WHERE (deleted = false);
 
 
 --

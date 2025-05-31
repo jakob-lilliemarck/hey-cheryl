@@ -43,6 +43,7 @@ class Concept(BaseModel):
     timestamp: datetime
     concept: str
     meaning: str
+    deleted: bool
 
 class SystemPromptKey(enum.Enum):
     BASE = "base"
@@ -50,6 +51,7 @@ class SystemPromptKey(enum.Enum):
 class SystemPrompt(BaseModel):
     key: SystemPromptKey
     prompt: str
+    timestamp: datetime
 
 # Response models
 class ReplyingTo(BaseModel):

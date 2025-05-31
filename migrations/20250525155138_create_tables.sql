@@ -42,17 +42,25 @@ CREATE TABLE concepts (
     timestamp TIMESTAMPTZ NOT NULL,
     concept TEXT NOT NULL,
     meaning TEXT NOT NULL,
+    deleted BOOLEAN NOT NULL,
     PRIMARY KEY (id, timestamp)
 );
 
 CREATE VIEW latest_concepts AS
-SELECT DISTINCT
-    ON (id) *
+SELECT
+    *
 FROM
-    concepts
-ORDER BY
-    id,
-    timestamp DESC;
+    (
+        SELECT DISTINCT
+            ON (id) *
+        FROM
+            concepts
+        ORDER BY
+            id,
+            timestamp DESC
+    )
+WHERE
+    deleted = FALSE;
 
 CREATE TABLE replies (
     id UUID NOT NULL,

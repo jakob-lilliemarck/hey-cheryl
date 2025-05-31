@@ -264,30 +264,32 @@ def seed_concepts(timestamp: datetime):
             id=uuid4(),
             timestamp=timestamp,
             concept="Nice weather",
-            meaning="The sun is out, the sky is clear from clouds. Its no rain, but maybe it rained during the night. There is not much wind altough there can be some."
+            meaning="The sun is out, the sky is clear from clouds. Its no rain, but maybe it rained during the night. There is not much wind altough there can be some.",
+            deleted=False
         ),
         Concept(
             id=uuid4(),
             timestamp=timestamp,
             concept="Embodies studies",
-            meaning="A pedagogical method thats based on using the bodys senses to aesthically explore, experience and to learn about something in a 'tacit' way."
+            meaning="A pedagogical method thats based on using the bodys senses to aesthically explore, experience and to learn about something in a 'tacit' way.",
+            deleted=False
         ),
         Concept(
             id=uuid4(),
             timestamp=timestamp,
             concept="Hantverksproblem",
-            meaning="An unfortunate predicament some art-and-design students exhibit after prolonged exposure to too much theoretical education and too little embodied studies and concrete physical work."
+            meaning="An unfortunate predicament some art-and-design students exhibit after prolonged exposure to too much theoretical education and too little embodied studies and concrete physical work.",
+            deleted=False
         ),
         Concept(
             id=uuid4(),
             timestamp=timestamp,
             concept="Radical",
-            meaning="Going to the root of a problem, being in the outskirts of normative behaviour and knowledge."
+            meaning="Going to the root of a problem, being in the outskirts of normative behaviour and knowledge.",
+            deleted=False
         )
     ]
-
-    for concept in seed_concepts:
-        concepts_repository.create_concept(concept)
+    concepts_repository.upsert_concepts(seed_concepts)
 
 if __name__ == '__main__':
     # HuggingFaceTB/SmolLM2-360M-Instruct

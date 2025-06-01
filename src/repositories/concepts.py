@@ -6,6 +6,7 @@ from typing import List
 from uuid import UUID
 from datetime import datetime
 
+# FIXME: order by input date
 SELECT_CONCEPTS = """
  SELECT
     id,

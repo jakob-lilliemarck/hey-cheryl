@@ -9,84 +9,85 @@
             href="{{ url_for('static', filename='styles.css') }}"
         />
         <style>
+            body {
+                gap: var(--spacing-lg);
+                display: grid;
+                grid-template-columns: 1fr minmax(auto, 700px) 1fr;
+                grid-template-rows: minmax(auto, 5rem) 1fr;
+                grid-template-areas: ". B ." ". D .";
+                margin: 0;
+            }
+            h1 {
+                grid-area: B;
+                justify-self: center;
+                align-self: center;
+                text-transform: capitalize;
+            }
             form {
                 display: flex;
-                flex-grow: 1;
                 flex-direction: column;
                 gap: var(--spacing-xl);
+                grid-area: D;
             }
-
             fieldset {
                 display: flex;
-                flex-grow: 1;
                 flex-direction: column;
                 gap: var(--spacing-lg);
                 padding: var(--spacing-lg);
                 border-color: var(--primary-accent);
                 background-color: var(--primary-bg);
             }
-
             legend {
                 border-width: 1px;
                 border-style: solid;
                 border-color: var(--primary-accent);
                 background-color: var(--color-bg);
                 padding: var(--spacing-sm) var(--spacing-md);
+                text-transform: capitalize;
             }
-
             .label {
                 display: flex;
                 flex-direction: column;
                 gap: var(--spacing-sm);
                 color: var(--primary-accent);
+                text-transform: capitalize;
             }
-
-            #system-prompts {
-            }
-
-            #system-prompts.label {
-            }
-
-            #system-prompts.input {
-            }
-
             #concepts {
-                display: grid;
-                grid-template-columns: 1fr 1fr;
-                grid-auto-rows: min-content;
+                display: flex;
+                flex-direction: column;
             }
-
-            #concepts.label {
+            #concepts > .concept {
+                display: flex;
+                flex-direction: column;
+                gap: var(--spacing-lg);
+                padding-bottom: var(--spacing-xl);
+                border-bottom: 1px solid var(--primary-accent);
             }
-
-            #concepts.input {
-            }
-
             button {
+                display: inline-block;
+                width: auto;
+                align-self: flex-start;
                 border-style: solid;
                 border-color: var(--primary-accent);
                 border-width: 1px;
                 border-radius: var(--border-radius);
                 background-color: #fff;
                 padding: var(--spacing-sm) var(--spacing-md);
-            }
-
-            #newConcept {
-                grid-column-start: 1;
-                grid-column-end: 2;
+                text-transform: capitalize;
             }
         </style>
     </head>
     <body>
+        <h1>Management pane</h1>
         <form method="POST">
             <fieldset id="system-prompts">
-                <legend>System prompts</legend>
+                <legend>system prompts</legend>
             </fieldset>
 
             <fieldset id="concepts">
                 <legend>Concepts</legend>
                 <button type="button" id="newConcept" @click="onNewConcept">
-                    New concept
+                    new concept
                 </button>
             </fieldset>
             <button type="submit">Save changes</button>
@@ -121,27 +122,47 @@
             const el = document.createElement("textarea");
             el.classList.add("input");
             el.setAttribute("name", fieldName);
+            el.setAttribute("rows", 5);
             if (value !== null && value !== undefined) {
                 el.value = value;
             }
             return el;
         }
 
+        function removeIfEmpty(containerEl, termEl, meaningEl) {
+          return function(_) {
+            if (termEl.value.trim() === "" && meaningEl.value.trim() === "") {
+              containerEl.remove();
+            }
+          }
+        }
+
         function createConceptFieldElement(id, key, value) {
-            const fragment = new DocumentFragment();
-            fragment.appendChild(
+            const el = document.createElement("div");
+            const termEl = createInputEl(`concept(${id})-term`, key);
+            const meaningEl = createTextareaEl(`concept(${id})-meaning`, value);
+            el.classList.add("concept")
+            el.appendChild(
                 createLabelEl(
                     "term",
-                    createInputEl(`concept(${id})-term`, key),
+                    termEl
                 ),
             );
-            fragment.appendChild(
+            el.appendChild(
                 createLabelEl(
                     "meaning",
-                    createTextareaEl(`concept(${id})-meaning`, value),
+                    meaningEl
                 ),
             );
-            return fragment;
+            el.addEventListener(
+              "change",
+              removeIfEmpty(
+                el,
+                termEl,
+                meaningEl
+              )
+            )
+            return el;
         }
 
         function createSystemPromptElement(key, value) {
@@ -163,7 +184,6 @@
 
         function appendElements(containerID, ...elements) {
             const el = document.getElementById(containerID);
-
             const fragment = new DocumentFragment();
             elements.forEach((el) => {
                 fragment.appendChild(el);
@@ -199,8 +219,10 @@
         newConceptEl.addEventListener("click", function (e) {
             e.preventDefault();
             insertConceptFields(
-                ...cpts.map((c) =>
-                    createConceptFieldElement(crypto.randomUUID(), null, null),
+                createConceptFieldElement(
+                  crypto.randomUUID(),
+                  null,
+                  null
                 ),
             );
         });

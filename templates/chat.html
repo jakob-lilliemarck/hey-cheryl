@@ -27,7 +27,7 @@
                 width: 100%;
                 justify-content: center;
                 align-items: center;
-                grid-template-columns: 1fr minmax(auto, 600px) 1fr;
+                grid-template-columns: 1fr minmax(auto, 700px) 1fr;
                 grid-template-areas: "A B C";
             }
             .notification {
@@ -58,17 +58,20 @@
             }
             .message {
                 gap: var(--spacing-xs);
-                display: grid;
-                grid-template-columns:
-                    calc(var(--spacing-md) + var(--spacing-xs))
-                    1fr calc(var(--spacing-md) + var(--spacing-xs));
-                grid-template-rows: min-content 1fr;
-                grid-template-areas: "A B C" "D E F";
+                display: flex;
+                flex-direction: column;
+                flex-grow: 1;
+            }
+            .message.current-user {
+                padding-left: var(--spacing-lg);
+            }
+            .message.other-user {
+                padding-right: var(--spacing-lg);
             }
             .message > .sender {
                 font-size: var(--font-size-sm);
                 color: #919191;
-                grid-column: B;
+                margin-left: var(--spacing-md);
             }
             .message > .body {
                 padding: 0.5rem 0.75rem;
@@ -80,7 +83,6 @@
                 overflow-wrap: break-word;
             }
             .message.current-user > .sender {
-                display: none;
             }
             .message.other-user.assistant > .sender {
                 color: var(--assistant-accent);
@@ -89,12 +91,10 @@
                 content: " says";
             }
             .message.current-user > .body {
-                grid-column: E / F;
                 background-color: var(--current-user-bg);
                 border-color: var(--current-user-accent);
             }
             .message.other-user > .body {
-                grid-column: D / E;
                 background-color: var(--other-user-bg);
                 border-color: var(--other-user-accent);
             }
@@ -358,10 +358,13 @@
 
             socket.on("user_connected", function (user) {
                 console.group("User connected");
-                console.log(user);
+                console.log({ user });
 
                 connectedUsersIDs[user.id] = true;
+                console.log({ connectedUsersIDs })
+
                 users[user.id] = user;
+                console.log({ users })
 
                 appendParticipants(user);
 
@@ -369,18 +372,18 @@
             });
 
             socket.on("user_disconnected", function (user) {
-                console.group("User dicconnected");
-                console.log(user);
+              console.group("User disconnected");
+              console.log({ user })
 
-                delete connectedUsersIDs[user.id];
+              delete connectedUsersIDs[user.id];
+              console.log({ connectedUsersIDs })
 
-                console.groupEnd();
+              console.groupEnd();
             });
 
             socket.on("message_created", function (message) {
                 console.group("Message created");
-                console.log(message);
-
+                console.log({ message });
                 appendMessages(message);
 
                 console.groupEnd();

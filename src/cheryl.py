@@ -89,7 +89,7 @@ class Contextualizer(AbstractContextualizer):
         sorted = np.argsort(scores)[::-1]
 
         concepts_to_use = [concepts[i] for i in sorted[:n + 1]]
-        logging.info(f"most relevant concepts{[{ 'concept': concepts[i], 'score': scores[i] } for i in sorted[:n + 1]]}")
+        logging.info(f"most relevant concepts{[{ 'concept': concepts[i], 'score': scores[i] } for i in sorted[:n]]}")
 
         return concepts_to_use
 
@@ -164,7 +164,7 @@ class Assistant(AbstractAssistant):
             output = self.model.generate(
                 input,
                 max_new_tokens=100,
-                temperature=0.5,
+                temperature=0.2,
                 top_p=0.95,
                 top_k=50,
                 do_sample=True,
@@ -241,6 +241,7 @@ def main():
         logging.info("Mocking tokenizer and model")
         assistant = MockedAssistant()
     else:
+        logging.info(f"Using model '{config.MODEL_NAME}'")
         tokenizer = AutoTokenizer.from_pretrained(config.MODEL_NAME)
         model = AutoModelForCausalLM.from_pretrained(config.MODEL_NAME)
         contextualizer = Contextualizer(

@@ -164,7 +164,7 @@ class Assistant(AbstractAssistant):
             output = self.model.generate(
                 input,
                 max_new_tokens=100,
-                temperature=0.2,
+                temperature=0.5,
                 top_p=0.95,
                 top_k=50,
                 do_sample=True,

@@ -72,16 +72,12 @@
             }
             .message > .body {
                 padding: 0.5rem 0.75rem;
-                border-radius: var(--border-radius);
-                border: 1px solid black;
-                margin: 0;
-                align-items: center;
-                display: flex;
                 border-width: 1px;
                 border-style: solid;
+                border-radius: var(--border-radius);
                 font-size: var(--font-size-md);
                 line-height: 1.1rem;
-                white-space: pre-wrap;
+                overflow-wrap: break-word;
             }
             .message.current-user > .sender {
                 display: none;

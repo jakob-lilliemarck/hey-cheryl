@@ -99,6 +99,13 @@ ORDER BY
     key,
     timestamp DESC;
 
+-- System prompts are considered part of the code.
+INSERT INTO
+    system_prompts (key, timestamp, prompt)
+VALUES
+    ('base', NOW (), ''),
+    ('related_concepts', NOW (), '');
+
 -- migrate:down
 -- Views
 DROP VIEW latest_user_sessions;

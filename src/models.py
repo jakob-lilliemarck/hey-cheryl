@@ -47,6 +47,7 @@ class Concept(BaseModel):
 
 class SystemPromptKey(enum.Enum):
     BASE = "base"
+    RELATED_CONCEPTS = "related_concepts"
 
 class SystemPrompt(BaseModel):
     key: SystemPromptKey

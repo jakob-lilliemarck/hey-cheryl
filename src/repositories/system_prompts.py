@@ -11,7 +11,7 @@ SELECT
     prompt,
     timestamp
 FROM latest_system_prompts
-WHERE key = %s;
+WHERE key = %(key)s;
 """
 
 SELECT_SYSTEM_PROMPTS = """
@@ -54,8 +54,9 @@ class SystemPromptsRepository:
         with self.pool.connection() as conn:
             with conn.cursor(row_factory=class_row(SystemPrompt)) as cur:
                 cur.execute(
-                    SELECT_SYSTEM_PROMPT,
-                    (key, )
+                    SELECT_SYSTEM_PROMPT, {
+                        "key": key
+                    }
                 )
                 prompt = cur.fetchone()
 

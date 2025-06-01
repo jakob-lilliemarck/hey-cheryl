@@ -13,15 +13,14 @@ from src.services.messages import MessagesService
 from src.services.users import UsersService
 from transformers.models.auto.tokenization_auto import AutoTokenizer
 from transformers.models.auto.modeling_auto import AutoModelForCausalLM
-from src.models import ChatTemplate, ChatTemplateRecord, Role, Concept
+from src.models import ChatTemplate, ChatTemplateRecord, Role, SystemPromptKey, Concept
 import abc
-from typing import Any
+from typing import Any, List
 import torch
 from sentence_transformers import SentenceTransformer
-from uuid import uuid4
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
-import textwrap
+from src.repositories.system_prompts import SystemPromptsRepository
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -36,6 +35,7 @@ pool = ConnectionPool(
 users_repository = UsersRepository(pool)
 messages_repository = MessagesRepository(pool)
 concepts_repository = ConceptsRepository(pool)
+system_prompts_repository = SystemPromptsRepository(pool)
 
 # Services
 users_service = UsersService(
@@ -63,58 +63,62 @@ class MockedAssistant(AbstractAssistant):
 
 class Contextualizer(AbstractContextualizer):
     concepts_repository: ConceptsRepository
-    concepts: list[Concept]
-    embeddings: ndarray
+    system_prompts_repository: SystemPromptsRepository
+    model: SentenceTransformer
 
     def __init__(
         self, *,
-        concepts_repository: ConceptsRepository
+        concepts_repository: ConceptsRepository,
+        system_prompts_repository: SystemPromptsRepository,
     ):
         self.model = SentenceTransformer("thenlper/gte-small")
-        self.concepts = concepts_repository.get_concepts()
-        self.embeddings = self.model.encode([c.meaning for c in self.concepts])
+        self.concepts_repository = concepts_repository
+        self.system_prompts_repository = system_prompts_repository
 
     def get_related_concepts(self, message: str, n: int) -> list[Concept]:
-        if not self.concepts:
+        concepts = self.concepts_repository.get_concepts()
+        embeddings: ndarray = self.model.encode([c.meaning for c in concepts])
+
+        if not concepts:
             return []
 
         input = self.model.encode([message])[0]
 
-        scores = cosine_similarity([input], self.embeddings)[0]
+        scores = cosine_similarity([input], embeddings)[0]
 
         sorted = np.argsort(scores)[::-1]
 
-        concepts_to_use = [self.concepts[i] for i in sorted[:n + 1]]
-        logging.info(f"most relevant concepts{[{ 'concept': self.concepts[i], 'score': scores[i] } for i in sorted[:n + 1]]}")
+        concepts_to_use = [concepts[i] for i in sorted[:n + 1]]
+        logging.info(f"most relevant concepts{[{ 'concept': concepts[i], 'score': scores[i] } for i in sorted[:n + 1]]}")
 
         return concepts_to_use
+
+    @staticmethod
+    def template_concepts(concepts: List[Concept]) -> str:
+        buf = "\n-- Key Concepts --\n"
+        for c in concepts:
+            buf += f"- **{c.concept}:** {c.meaning}\n"
+        buf += "\n-- Key Concepts --\n"
+        return buf
 
     def get_contextualized_system_prompt(self, message: str) -> str:
         """
         Retrieves related concepts and formats them into a prompt string.
         """
+        base_prompt = self.system_prompts_repository.get_system_prompt(SystemPromptKey.BASE.value)
         concepts = self.get_related_concepts(message, 3)
-        prompt_section = textwrap.dedent("""\
-            You are Cheryl, professor of aesthetics at Konstfack, University of Arts, Crafts and Design.
-            Keep your responses concise and conversational, aiming for 1 to 2 sentences.\n
-            """)
         if not concepts:
-            return prompt_section
+            # If nothing were retrieved, just return the base prompt
+            return base_prompt.prompt
 
-        prompt_section += textwrap.dedent("""\
-            Here are some key terms and phrases that are part of my (Cheryl's) unique vocabulary and way
-            of thinking. When responding, please consider using these terms where appropriate, ensuring
-            you use them in a way that reflects the specific meaning I (Cheryl) assign to them below:
+        related_concepts_prompt = self.system_prompts_repository.get_system_prompt(SystemPromptKey.RELATED_CONCEPTS.value)
 
-            -- My Key Concepts --
-        """)
-        for concept in concepts:
-            prompt_section += f"Term: {concept.concept}\n"
-            prompt_section += f"Meaning: {concept.meaning}\n\n" # Add extra newline for separation
-
-        prompt_section += "-- End Key Concepts --\n"
-
-        return prompt_section
+        # If we got some similar content, build up
+        prompt = ""
+        prompt += f"{base_prompt.prompt}\n"
+        prompt += f"{related_concepts_prompt.prompt}\n"
+        prompt += Contextualizer.template_concepts(concepts)
+        return prompt
 
 class Assistant(AbstractAssistant):
     contextualizer: AbstractContextualizer
@@ -133,7 +137,7 @@ class Assistant(AbstractAssistant):
 
     def formulate(self, message: str) -> str:
         system_prompt = self.contextualizer.get_contextualized_system_prompt(message)
-        logging.info(f"Using system prompt\n\n{system_prompt}")
+        logging.info(f"Using prompt\n\n{system_prompt}")
 
         templated = Assistant.template_one_off(
             user=message,
@@ -159,7 +163,7 @@ class Assistant(AbstractAssistant):
         with torch.no_grad(): # Important for inference
             output = self.model.generate(
                 input,
-                max_new_tokens=70,
+                max_new_tokens=100,
                 temperature=0.5,
                 top_p=0.95,
                 top_k=50,
@@ -239,7 +243,10 @@ def main():
     else:
         tokenizer = AutoTokenizer.from_pretrained(config.MODEL_NAME)
         model = AutoModelForCausalLM.from_pretrained(config.MODEL_NAME)
-        contextualizer = Contextualizer(concepts_repository=concepts_repository)
+        contextualizer = Contextualizer(
+            concepts_repository=concepts_repository,
+            system_prompts_repository=system_prompts_repository,
+        )
         assistant = Assistant(
             contextualizer=contextualizer,
             tokenizer=tokenizer,
@@ -257,39 +264,6 @@ def main():
         assistant_service.poll()
         sleep(2)
 
-
-def seed_concepts(timestamp: datetime):
-    seed_concepts = [
-        Concept(
-            id=uuid4(),
-            timestamp=timestamp,
-            concept="Nice weather",
-            meaning="The sun is out, the sky is clear from clouds. Its no rain, but maybe it rained during the night. There is not much wind altough there can be some.",
-            deleted=False
-        ),
-        Concept(
-            id=uuid4(),
-            timestamp=timestamp,
-            concept="Embodies studies",
-            meaning="A pedagogical method thats based on using the bodys senses to aesthically explore, experience and to learn about something in a 'tacit' way.",
-            deleted=False
-        ),
-        Concept(
-            id=uuid4(),
-            timestamp=timestamp,
-            concept="Hantverksproblem",
-            meaning="An unfortunate predicament some art-and-design students exhibit after prolonged exposure to too much theoretical education and too little embodied studies and concrete physical work.",
-            deleted=False
-        ),
-        Concept(
-            id=uuid4(),
-            timestamp=timestamp,
-            concept="Radical",
-            meaning="Going to the root of a problem, being in the outskirts of normative behaviour and knowledge.",
-            deleted=False
-        )
-    ]
-    concepts_repository.upsert_concepts(seed_concepts)
 
 if __name__ == '__main__':
     # HuggingFaceTB/SmolLM2-360M-Instruct

@@ -114,10 +114,10 @@ class Contextualizer(AbstractContextualizer):
         if base and base.prompt:
             parts.append(base.prompt)
 
-        concepts = self.get_related_concepts(message, 3)
-        # related_concepts = self.system_prompts_repository.get_system_prompt(SystemPromptKey.RELATED_CONCEPTS.value)
-        # if concepts and related_concepts and related_concepts.prompt:
-        #     parts.append(related_concepts.prompt)
+        concepts = self.get_related_concepts(message, 5)
+        related_concepts = self.system_prompts_repository.get_system_prompt(SystemPromptKey.RELATED_CONCEPTS.value)
+        if concepts and related_concepts and related_concepts.prompt:
+            parts.append(related_concepts.prompt)
 
         if concepts:
             parts.append(Contextualizer.template_concepts(concepts))
@@ -155,7 +155,7 @@ class Assistant(AbstractAssistant):
             templated,
             tokenize=False,
             add_generation_prompt=True,
-            enable_thinking=False
+            enable_thinking=False,
         )
 
         input = self.tokenizer.encode(
@@ -170,12 +170,13 @@ class Assistant(AbstractAssistant):
             output = self.model.generate(
                 input,
                 max_new_tokens=200,
-                temperature=0.5,
+                temperature=0.55,
                 top_p=0.95,
                 top_k=50,
                 do_sample=True,
-                repetition_penalty=1.2,
-                eos_token_id=self.tokenizer.eos_token_id
+                repetition_penalty=1.1,
+                eos_token_id=self.tokenizer.eos_token_id,
+                pad_token_id=self.tokenizer.eos_token_id
             )
 
         reply_tokens = output[0][input_token_length:]

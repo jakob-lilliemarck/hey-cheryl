@@ -73,7 +73,7 @@
                 color: #919191;
                 margin-left: var(--spacing-md);
             }
-            .message > .body {
+            .message > p {
                 padding: 0.5rem 0.75rem;
                 border-width: 1px;
                 border-style: solid;
@@ -90,15 +90,15 @@
             .message.other-user.assistant > .sender::after {
                 content: " says";
             }
-            .message.current-user > .body {
+            .message.current-user > p {
                 background-color: var(--current-user-bg);
                 border-color: var(--current-user-accent);
             }
-            .message.other-user > .body {
+            .message.other-user > p {
                 background-color: var(--other-user-bg);
                 border-color: var(--other-user-accent);
             }
-            .message.other-user.assistant > .body {
+            .message.other-user.assistant > p {
                 background-color: var(--assistant-bg);
                 border-color: var(--assistant-accent);
             }

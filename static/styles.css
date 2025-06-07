@@ -85,6 +85,41 @@ html {
     overflow: hidden;
 }
 
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    margin: var(--spacing-md);
+    margin-left: 0;
+    margin-right: 0;
+}
+
+blockquote,
+ol,
+ul,
+p {
+    white-space: nowrap;
+}
+
+blockquote,
+ol,
+ul {
+    margin-left: var(--spacing-lg);
+    padding-left: var(--spacing-lg);
+}
+
+p {
+    margin: 0;
+    padding: 0;
+    white-space: pre-wrap;
+}
+
+blockquote {
+    border-left: 2px solid var(--faint);
+}
+
 button {
     outline: none;
     border: none;

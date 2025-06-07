@@ -23,6 +23,10 @@
                 justify-content: center;
                 gap: var(--spacing-xl);
             }
+            p {
+                font-size: 1.5rem;
+                margin: 0;
+            }
             a {
                 display: inline-block;
                 align-self: center;
@@ -41,27 +45,22 @@
             .signature {
                 color: var(--faint);
                 align-self: end;
+                font-size: 1rem;
             }
         </style>
     </head>
     <body>
         <h1>👋 Cheryl</h1>
         <p>
-            Thank you for your inspiring and insightful perspective, and for
-            your ever-enthusiastic spirit. I've learned so much from you!
+            I present to you Hey-Cheryl a faint and quirky digital echo of our
+            beloved professor.
         </p>
         <p>
-            You're leaving a void of knowledge behind at Konstfack, and though
-            it may seem naive, I wanted to honor you by attempting to amend
-            that. After all, what better way to celebrate your lifelong career
-            of academic excellence than by creatively exploring and learning
-            about something new?
+            After all, what better way to celebrate a lifelong career of
+            academic excellence than by creatively exploring and learning about
+            something new?
         </p>
-        <p>
-            As such, I present to you Hey-Cheryl a faint and quirky digital echo
-            of our beloved professor.
-        </p>
-        <a href="{{ url_for('chat') }}">Chat with Cheryl</a>
         <p class="signature">Jakob Lilliemarck</p>
+        <a href="{{ url_for('chat') }}">Chat with Cheryl</a>
     </body>
 </html>

@@ -3,6 +3,8 @@
     <head>
         <title>👋 Cheryl</title>
         <script src="https://unpkg.com/socket.io-client@4.8.1/dist/socket.io.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/dompurify@latest/dist/purify.min.js"></script>
         <meta content="width=device-width, initial-scale=1" name="viewport" />
         <link
             rel="stylesheet"
@@ -166,6 +168,7 @@
             const ROLE_ASSISTANT = "assistant";
             const CLIENT_ID_KEY = "clientID";
             const KEY_USER_NAME = "userName";
+            const ASSISTANT_USER_ID = "{{ assistant_user_id }}"
 
             // State
             const users = {};
@@ -264,7 +267,9 @@
 
                 // Create the body element
                 const bodyEl = document.createElement("p");
-                bodyEl.innerHTML += message.message;
+                const dirtyHTML = marked.parse(message.message);
+                const sanitizedHTML = DOMPurify.sanitize(dirtyHTML);
+                bodyEl.innerHTML = sanitizedHTML;
                 bodyEl.classList.add("body");
 
                 // Create the sender element

@@ -226,7 +226,8 @@ def chat():
         'chat.html',
         initial_messages=initial_messages,
         initial_connected_user_ids=initial_connected_user_ids,
-        initial_users_of_conversation=initial_users_of_conversation
+        initial_users_of_conversation=initial_users_of_conversation,
+        assistant_user_id=config.ASSISTANT_USER_ID
     )
 
 

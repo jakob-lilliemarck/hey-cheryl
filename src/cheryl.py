@@ -83,41 +83,47 @@ class Contextualizer(AbstractContextualizer):
             return []
 
         input = self.model.encode([message])[0]
-
         scores = cosine_similarity([input], embeddings)[0]
-
         sorted = np.argsort(scores)[::-1]
 
-        concepts_to_use = [concepts[i] for i in sorted[:n + 1]]
-        logging.info(f"most relevant concepts{[{ 'concept': concepts[i], 'score': scores[i] } for i in sorted[:n]]}")
+        concepts_to_use = []
+        scores_to_log = []
+        for i in sorted[:n]:
+            concepts_to_use.append(concepts[i])
+            scores_to_log.append({'concept': concepts[i].concept, 'score': scores[i]})
 
+        logging.info(f"Most relevant concepts (top {n}): {scores_to_log}")
         return concepts_to_use
 
     @staticmethod
     def template_concepts(concepts: List[Concept]) -> str:
-        buf = "\n-- Key Concepts --\n"
+        buf = "\nREFERENCE CONCEPTS FOR CHERYL'S VOCABULARY:\n"
         for c in concepts:
-            buf += f"- **{c.concept}:** {c.meaning}\n"
-        buf += "\n-- Key Concepts --\n"
+            buf += f"Concept: {c.concept}\n"
+            buf += f"Meaning: {c.meaning}\n\n"
+        buf += "\nEND OF REFERENCE CONCEPTS.\n"
         return buf
 
     def get_contextualized_system_prompt(self, message: str) -> str:
         """
         Retrieves related concepts and formats them into a prompt string.
         """
-        base_prompt = self.system_prompts_repository.get_system_prompt(SystemPromptKey.BASE.value)
+        parts = []
+
+        base = self.system_prompts_repository.get_system_prompt(SystemPromptKey.BASE.value)
+        if base and base.prompt:
+            parts.append(base.prompt)
+
         concepts = self.get_related_concepts(message, 3)
-        if not concepts:
-            # If nothing were retrieved, just return the base prompt
-            return base_prompt.prompt
+        # related_concepts = self.system_prompts_repository.get_system_prompt(SystemPromptKey.RELATED_CONCEPTS.value)
+        # if concepts and related_concepts and related_concepts.prompt:
+        #     parts.append(related_concepts.prompt)
 
-        related_concepts_prompt = self.system_prompts_repository.get_system_prompt(SystemPromptKey.RELATED_CONCEPTS.value)
+        if concepts:
+            parts.append(Contextualizer.template_concepts(concepts))
 
-        # If we got some similar content, build up
-        prompt = ""
-        prompt += f"{base_prompt.prompt}\n"
-        prompt += f"{related_concepts_prompt.prompt}\n"
-        prompt += Contextualizer.template_concepts(concepts)
+        prompt = "\n".join(parts).strip()
+
         return prompt
 
 class Assistant(AbstractAssistant):

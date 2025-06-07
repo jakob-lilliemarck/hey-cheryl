@@ -163,12 +163,12 @@ class Assistant(AbstractAssistant):
         with torch.no_grad(): # Important for inference
             output = self.model.generate(
                 input,
-                max_new_tokens=100,
+                max_new_tokens=200,
                 temperature=0.5,
                 top_p=0.95,
                 top_k=50,
                 do_sample=True,
-                repetition_penalty=2.0,
+                repetition_penalty=1.2,
                 eos_token_id=self.tokenizer.eos_token_id
             )
 

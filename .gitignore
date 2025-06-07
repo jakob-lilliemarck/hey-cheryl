@@ -11,4 +11,4 @@ wheels/
 # Virtual environments
 .venv
 .notes
-.prompts.txt
+.prompts.md

@@ -7,48 +7,48 @@ from datetime import datetime
 from psycopg.rows import TupleRow,class_row
 
 INSERT_MESSAGE = """
-    INSERT INTO messages (
-        id,
-        conversation_id,
-        user_id,
-        role,
-        timestamp,
-        message
-    ) VALUES (%s, %s, %s, %s, %s, %s)
-    RETURNING *;
+INSERT INTO messages (
+    id,
+    conversation_id,
+    user_id,
+    role,
+    timestamp,
+    message
+) VALUES (%s, %s, %s, %s, %s, %s)
+RETURNING *;
 """
 
 SELECT_MESSAGE = """
-    SELECT *
-    FROM messages
-    WHERE id = %s;
+SELECT *
+FROM messages
+WHERE id = %s;
 """
 
 SELECT_MESSAGES = """
-    SELECT *
-    FROM messages
-    WHERE
-        conversation_id = %s
-        AND (%s::timestamptz IS NULL OR timestamp >= %s::timestamptz)
-    ORDER BY timestamp
-    LIMIT 50;
+SELECT *
+FROM messages
+WHERE
+    conversation_id = %(conversation_id)s::UUID
+    AND (%(timestamp)s::TIMESTAMPTZ IS NULL OR timestamp >= %(timestamp)s::TIMESTAMPTZ)
+ORDER BY timestamp
+LIMIT %(limit)s::INTEGER;
 """
 
 SELECT_USER_IDS_OF_CONVERSATION = """
-    SELECT DISTINCT(user_id)
-    FROM messages
-    WHERE conversation_id = %s;
+SELECT DISTINCT(user_id)
+FROM messages
+WHERE conversation_id = %s;
 """
 
 INSERT_REPLY = """
-    INSERT INTO replies (
-        id,
-        timestamp,
-        message_id,
-        status,
-        message
-    ) VALUES (%s, %s, %s, %s, %s)
-    RETURNING *;
+INSERT INTO replies (
+    id,
+    timestamp,
+    message_id,
+    status,
+    message
+) VALUES (%s, %s, %s, %s, %s)
+RETURNING *;
 """
 
 SELECT_REPLIES = """
@@ -130,7 +130,8 @@ class MessagesRepository:
         self,
         *,
         conversation_id: UUID,
-        timestamp: Optional[datetime] = None
+        timestamp: Optional[datetime] = None,
+        limit: int
     ) -> list[Message]:
         """
         Retrieves messages for a given conversation ID, optionally filtering by timestamp.
@@ -139,11 +140,11 @@ class MessagesRepository:
             with conn.cursor(row_factory=class_row(Message)) as cur:
                 cur.execute(
                     SELECT_MESSAGES,
-                    (
-                        str(conversation_id),
-                        timestamp,
-                        timestamp,
-                    ),
+                    {
+                        'conversation_id': str(conversation_id),
+                        'timestamp': timestamp,
+                        'limit': limit,
+                    },
                 )
 
                 return cur.fetchall()

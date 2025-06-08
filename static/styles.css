@@ -91,22 +91,13 @@ h3,
 h4,
 h5,
 h6 {
-    margin: var(--spacing-md);
-    margin-left: 0;
-    margin-right: 0;
+    margin: var(--spacing-md) 0;
 }
 
-blockquote,
-ol,
-ul,
-p {
-    white-space: nowrap;
-}
-
-blockquote,
 ol,
 ul {
-    margin-left: var(--spacing-lg);
+    margin: var(--spacing-md);
+    margin-right: 0;
     padding-left: var(--spacing-lg);
 }
 
@@ -117,7 +108,24 @@ p {
 }
 
 blockquote {
-    border-left: 2px solid var(--faint);
+    margin: 0;
+    display: flex;
+    gap: var(--spacing-md);
+    background: #fff;
+    padding: var(--spacing-md);
+    border-left: 2px solid var(--primary-accent);
+    color: var(--primary-accent);
+    font-style: italic;
+    border-radius: 0 var(--spacing-sm) var(--spacing-sm) 0;
+}
+
+table {
+    border-spacing: var(--spacing-md);
+}
+th,
+td {
+    text-align: left;
+    vertical-align: top;
 }
 
 button {

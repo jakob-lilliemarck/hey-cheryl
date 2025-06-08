@@ -14,6 +14,7 @@ from src.repositories.system_prompts import SystemPromptsRepository
 from src.services.users import UsersService
 from src.services.messages import MessagesService
 from src.services.concepts import ConceptsService
+from src.models import ReplyStatus
 from uuid import UUID
 from functools import wraps
 import re
@@ -212,21 +213,38 @@ def manage():
 @app.route('/chat-with-cheryl')
 def chat():
     """Serves the main HTML page."""
-    messages = messages_repository.get_messages(conversation_id=config.CONVERSATION_ID)
+    messages = messages_repository.get_messages(
+        conversation_id=config.CONVERSATION_ID,
+        timestamp=None,
+        limit=100
+    )
     user_ids_of_conversation = messages_repository.get_user_ids_of_conversation(conversation_id=config.CONVERSATION_ID)
     user_ids = users_repository.get_connected_user_ids()
     user_ids_of_conversation.append(config.ASSISTANT_USER_ID)
     users = users_repository.get_users_by_id(user_ids_of_conversation)
 
+    replies_in_progress = messages_repository.get_replies(
+        status=[ReplyStatus.PENDING],
+        message_id=None,
+        limit=1
+    );
+    replying_to: ReplyingTo | None = None
+    if replies_in_progress:
+        reply_in_progress = replies_in_progress[0]
+        message = messages_repository.get_message(message_id=reply_in_progress.message_id)
+        replying_to = ReplyingTo(user_id=message.user_id)
+
     initial_messages = [msg.model_dump(mode='json') for msg in messages]
     initial_connected_user_ids = [str(id) for id in user_ids]
     initial_users_of_conversation = [u.model_dump(mode='json') for u in users]
+    initial_replying_to = replying_to.model_dump(mode='json') if replying_to else None
 
     return render_template(
         'chat.html',
         initial_messages=initial_messages,
         initial_connected_user_ids=initial_connected_user_ids,
         initial_users_of_conversation=initial_users_of_conversation,
+        initial_replying_to=initial_replying_to,
         assistant_user_id=config.ASSISTANT_USER_ID
     )
 

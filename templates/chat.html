@@ -19,6 +19,7 @@
                 height: 100%;
                 width: 100%;
                 display: grid;
+                gap: var(--spacing-md);
                 grid-template-columns: 1fr minmax(auto, 700px) 1fr;
                 grid-template-rows: 1fr minmax(auto, 5rem);
                 grid-template-areas: "B B B" ". D .";
@@ -65,22 +66,6 @@
                 gap: var(--spacing-xs);
                 display: flex;
                 flex-direction: column;
-            }
-            .message:last-child {
-                margin-bottom: var(--spacing-md);
-            }
-            .message.current-user {
-                padding-left: var(--spacing-lg);
-            }
-            .message.other-user {
-                padding-right: var(--spacing-lg);
-            }
-            .message > .sender {
-                font-size: var(--font-size-sm);
-                color: #919191;
-                margin-left: var(--spacing-md);
-            }
-            .message > p {
                 padding: 0.5rem 0.75rem;
                 border-width: 1px;
                 border-style: solid;
@@ -89,7 +74,24 @@
                 line-height: 1.1rem;
                 overflow-wrap: break-word;
             }
-            .message.current-user > .sender {
+            .message.current-user {
+                margin-left: var(--spacing-lg);
+                background-color: var(--current-user-bg);
+                border-color: var(--current-user-accent);
+            }
+            .message.other-user {
+                margin-right: var(--spacing-lg);
+                background-color: var(--other-user-bg);
+                border-color: var(--other-user-accent);
+            }
+            .message.other-user.assistant {
+                background-color: var(--assistant-bg);
+                border-color: var(--assistant-accent);
+            }
+            .message > .sender {
+                font-size: var(--font-size-sm);
+                color: #919191;
+                margin-left: var(--spacing-md);
             }
             .message.other-user.assistant > .sender {
                 color: var(--assistant-accent);
@@ -97,24 +99,12 @@
             .message.other-user.assistant > .sender::after {
                 content: " says";
             }
-            .message.current-user > p {
-                background-color: var(--current-user-bg);
-                border-color: var(--current-user-accent);
-            }
-            .message.other-user > p {
-                background-color: var(--other-user-bg);
-                border-color: var(--other-user-accent);
-            }
-            .message.other-user.assistant > p {
-                background-color: var(--assistant-bg);
-                border-color: var(--assistant-accent);
-            }
+
             .editor {
                 display: flex;
                 gap: var(--spacing-md);
-                margin-bottom: 0 var(--spacing-md);
                 grid-area: D;
-                padding: var(--spacing-md);
+                padding-bottom: var(--spacing-md);
             }
             #input:focus,
             #input:focus {
@@ -176,20 +166,14 @@
             // State
             const users = {};
             const connectedUsersIDs = {};
-
-            // Must be single qouted
-            // prettier-ignore
             const initialMessages = {{ initial_messages | tojson | safe }};
+            const initialReplyingTo = {{ initial_replying_to | tojson | safe }};
 
-            // Must be single qouted
-            // prettier-ignore
             const initialConnectedUserIDs = {{ initial_connected_user_ids | tojson | safe }}
             for (const id of initialConnectedUserIDs) {
                 connectedUsersIDs[id] = true;
             }
 
-            // Must be single qouted
-            // prettier-ignore
             const initialUsersOfConversation = {{ initial_users_of_conversation | tojson | safe }}
             for (const user of initialUsersOfConversation) {
                 users[user.id] = user;
@@ -264,12 +248,10 @@
                     classList.push("assistant");
                 }
 
-                // Create the body element
+                // Parse the message as from markdown to HTML and sanitize the output
                 const bodyEl = document.createElement("p");
                 const dirtyHTML = marked.parse(message.message);
                 const sanitizedHTML = DOMPurify.sanitize(dirtyHTML);
-                bodyEl.innerHTML = sanitizedHTML;
-                bodyEl.classList.add("body");
 
                 // Create the sender element
                 const senderEl = document.createElement("div");
@@ -279,7 +261,7 @@
                 // Create the message element
                 const messageEl = document.createElement("div");
                 messageEl.appendChild(senderEl);
-                messageEl.appendChild(bodyEl);
+                messageEl.innerHTML = sanitizedHTML;
                 messageEl.classList.add(...classList);
 
                 return messageEl;
@@ -308,6 +290,10 @@
             document.addEventListener("DOMContentLoaded", (event) => {
                 input.focus();
                 appendMessages(...initialMessages);
+
+                if (initialReplyingTo !== null) {
+                  showReplyingTo(initialReplyingTo)
+                }
             });
 
             // Socket event handlers

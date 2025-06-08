@@ -64,7 +64,7 @@ class MessagesService():
     ) -> Reply | None:
         logging.info("MessagesService.enqueue_if_available: checking availability")
         replies_in_progress = self.messages_repository.get_replies(
-            status=[ReplyStatus.PENDING, ReplyStatus.READY], # TODO - or just PENDING maybe?
+            status=[ReplyStatus.PENDING],
             message_id=None,
             limit=1
         );

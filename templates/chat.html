@@ -45,9 +45,28 @@
                 opacity: 0;
                 transition: opacity 500ms ease;
                 font-size: var(--font-size-md);
+                display: flex;
+                justify-content: space-between;
+                transition: opacity 200ms ease;
             }
             .notification.enabled {
                 opacity: 1;
+            }
+            .spinner {
+                border: 3px solid rgba(0, 0, 0, 0.1);
+                width: 16px;
+                height: 16px;
+                border-radius: 50%;
+                border-left-color: var(--faint, #007bff);
+                animation: spin 0.8s linear infinite;
+            }
+            @keyframes spin {
+                0% {
+                    transform: rotate(0deg);
+                }
+                100% {
+                    transform: rotate(360deg);
+                }
             }
             #messages {
                 display: flex;
@@ -156,7 +175,10 @@
     </head>
     <body>
         <div id="toasts">
-            <div id="replying" class="notification"></div>
+            <div id="replying" class="notification">
+                <span id="replyingToText"></span>
+                <div class="spinner"></div>
+            </div>
         </div>
         <div id="messages"></div>
         <div class="editor">
@@ -192,6 +214,7 @@
             // Variables
             const toasts = document.getElementById("toasts");
             const replying = document.getElementById("replying");
+            const replyingToText = document.getElementById("replyingToText");
             const messages = document.getElementById("messages");
             const input = document.getElementById("input");
             const socket = io({
@@ -291,7 +314,7 @@
 
             function showReplyingTo({ user_id }) {
                 const user = users[user_id];
-                replying.innerHTML = `Cheryl is replying to ${user ? user.name : "someone"}`;
+                replyingToText.innerHTML = `Cheryl is replying to ${user ? user.name : "someone"}`;
                 replying.classList.add("enabled");
             }
 

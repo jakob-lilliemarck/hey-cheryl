@@ -60,10 +60,11 @@
     --warn-bg: hsl(var(--warn-h), var(--warn-s), calc(var(--warn-l) + 25%));
 
     --color-bg: #f2f2f2;
-    --faint: #919191;
+    --faint: #737373;
 
-    --font-size-sm: 0.75rem;
-    --font-size-md: 0.875rem;
+    --font-size-sm: 0.875rem;
+    --font-size-md: 1rem;
+    --font-size-lg: 1.25rem;
 
     --border-radius: 0.5rem;
 
@@ -113,8 +114,8 @@ blockquote {
     gap: var(--spacing-md);
     background: #fff;
     padding: var(--spacing-md);
-    border-left: 2px solid var(--primary-accent);
-    color: var(--primary-accent);
+    border-left: 3px solid var(--faint);
+    color: var(--faint);
     font-style: italic;
     border-radius: 0 var(--spacing-sm) var(--spacing-sm) 0;
 }

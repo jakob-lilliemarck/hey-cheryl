@@ -63,28 +63,34 @@
                 margin-top: auto;
             }
             .message {
+                background-color: none;
                 gap: var(--spacing-xs);
                 display: flex;
                 flex-direction: column;
+                font-size: var(--font-size-md);
+            }
+            .message.current-user {
+                margin-left: var(--spacing-lg);
+            }
+            .message.other-user {
+                margin-right: var(--spacing-lg);
+            }
+            .message > .body {
                 padding: 0.5rem 0.75rem;
                 border-width: 1px;
                 border-style: solid;
                 border-radius: var(--border-radius);
-                font-size: var(--font-size-md);
                 line-height: 1.1rem;
-                overflow-wrap: break-word;
             }
-            .message.current-user {
-                margin-left: var(--spacing-lg);
+            .message.current-user > .body {
                 background-color: var(--current-user-bg);
                 border-color: var(--current-user-accent);
             }
-            .message.other-user {
-                margin-right: var(--spacing-lg);
+            .message.other-user > .body {
                 background-color: var(--other-user-bg);
                 border-color: var(--other-user-accent);
             }
-            .message.other-user.assistant {
+            .message.other-user.assistant > .body {
                 background-color: var(--assistant-bg);
                 border-color: var(--assistant-accent);
             }
@@ -249,9 +255,11 @@
                 }
 
                 // Parse the message as from markdown to HTML and sanitize the output
-                const bodyEl = document.createElement("p");
+                const bodyEl = document.createElement("div");
                 const dirtyHTML = marked.parse(message.message);
                 const sanitizedHTML = DOMPurify.sanitize(dirtyHTML);
+                bodyEl.classList.add("body");
+                bodyEl.innerHTML = sanitizedHTML;
 
                 // Create the sender element
                 const senderEl = document.createElement("div");
@@ -261,7 +269,7 @@
                 // Create the message element
                 const messageEl = document.createElement("div");
                 messageEl.appendChild(senderEl);
-                messageEl.innerHTML = sanitizedHTML;
+                messageEl.appendChild(bodyEl);
                 messageEl.classList.add(...classList);
 
                 return messageEl;

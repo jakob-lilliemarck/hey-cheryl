@@ -105,16 +105,11 @@
             .message.other-user.assistant > .sender::after {
                 content: " says";
             }
-
             .editor {
                 display: flex;
                 gap: var(--spacing-md);
                 grid-area: D;
                 padding-bottom: var(--spacing-md);
-            }
-            #input:focus,
-            #input:focus {
-                outline: 1px solid var(--primary-accent);
             }
             .editor > textarea {
                 display: flex;
@@ -137,12 +132,20 @@
                 align-items: center;
                 border-radius: 99px;
                 color: #fff;
-                background-color: var(--primary-accent);
+                background-color: hsl(
+                    var(--assistant-h),
+                    var(--assistant-s),
+                    calc(var(--assistant-l) - 15%)
+                );
                 cursor: pointer;
                 transition: background-color 300ms ease;
             }
             .editor > button > * {
                 margin-right: 2px;
+            }
+            #input:focus,
+            #input:focus {
+                outline: 1px solid var(--primary-accent);
             }
             @media (min-width: 700px) {
                 body {

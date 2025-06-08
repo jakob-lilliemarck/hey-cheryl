@@ -80,7 +80,8 @@ CREATE VIEW public.latest_replies AS
 CREATE TABLE public.system_prompts (
     key text NOT NULL,
     "timestamp" timestamp with time zone NOT NULL,
-    prompt text NOT NULL
+    prompt text NOT NULL,
+    approved boolean DEFAULT false NOT NULL
 );
 
 
@@ -266,4 +267,5 @@ ALTER TABLE ONLY public.user_sessions
 --
 
 INSERT INTO public.schema_migrations (version) VALUES
-    ('20250525155138');
+    ('20250525155138'),
+    ('20250608101345');

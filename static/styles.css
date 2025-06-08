@@ -2,10 +2,18 @@
     --warn-h: 44;
     --warn-s: 70%;
     --warn-l: 60%;
+    --warn-accent: hsl(var(--warn-h), var(--warn-s), var(--warn-l));
+    --warn-bg: hsl(var(--warn-h), var(--warn-s), calc(var(--warn-l) + 25%));
 
     --primary-h: 280;
     --primary-s: 95%;
     --primary-l: 50%;
+    --primary-accent: hsl(var(--primary-h), var(--primary-s), var(--primary-l));
+    --primary-bg: hsl(
+        var(--primary-h),
+        var(--primary-s),
+        calc(var(--primary-l) + 45%)
+    );
 
     --assistant-h: 280;
     --assistant-s: 95%;
@@ -48,16 +56,6 @@
         var(--current-user-s),
         var(--current-user-l)
     );
-
-    --primary-accent: hsl(var(--primary-h), var(--primary-s), var(--primary-l));
-    --primary-bg: hsl(
-        var(--primary-h),
-        var(--primary-s),
-        calc(var(--primary-l) + 45%)
-    );
-
-    --warn-accent: hsl(var(--warn-h), var(--warn-s), var(--warn-l));
-    --warn-bg: hsl(var(--warn-h), var(--warn-s), calc(var(--warn-l) + 25%));
 
     --color-bg: #f2f2f2;
     --faint: #737373;
@@ -102,8 +100,12 @@ ul {
     padding-left: var(--spacing-lg);
 }
 
+li {
+    margin-bottom: var(--spacing-md);
+}
+
 p {
-    margin: 0;
+    margin: var(--spacing-md) 0;
     padding: 0;
     white-space: pre-wrap;
 }

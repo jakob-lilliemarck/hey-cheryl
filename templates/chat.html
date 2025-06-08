@@ -8,13 +8,16 @@
         <meta content="width=device-width, initial-scale=1" name="viewport" />
         <link
             rel="stylesheet"
+            href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css"
+        />
+        <link
+            rel="stylesheet"
             href="{{ url_for('static', filename='styles.css') }}"
         />
         <style>
             body {
                 height: 100%;
                 width: 100%;
-                gap: var(--spacing-lg);
                 display: grid;
                 grid-template-columns: 1fr minmax(auto, 700px) 1fr;
                 grid-template-rows: 1fr minmax(auto, 5rem);
@@ -53,6 +56,7 @@
                 border-radius: 0 0 var(--border-radius) var(--border-radius);
                 grid-area: B;
                 padding: 0 var(--spacing-lg);
+                height: 100%;
             }
             #messages > :first-child {
                 margin-top: auto;
@@ -61,6 +65,9 @@
                 gap: var(--spacing-xs);
                 display: flex;
                 flex-direction: column;
+            }
+            .message:last-child {
+                margin-bottom: var(--spacing-md);
             }
             .message.current-user {
                 padding-left: var(--spacing-lg);
@@ -102,45 +109,43 @@
                 background-color: var(--assistant-bg);
                 border-color: var(--assistant-accent);
             }
-            #participants {
-                grid-area: C;
-                width: 250px;
-                align-self: end;
+            .editor {
                 display: flex;
-                flex-direction: column-reverse;
                 gap: var(--spacing-md);
-                display: none; /* TODO: remove or fix */
+                margin-bottom: 0 var(--spacing-md);
+                grid-area: D;
+                padding: var(--spacing-md);
             }
-            .participant {
-                background: #fff;
-                padding: 1rem;
-                border-radius: var(--border-radius);
-                border-width: 1px;
-                border-style: solid;
+            #input:focus,
+            #input:focus {
+                outline: 1px solid var(--primary-accent);
             }
-            .participant.current-user {
-                background-color: var(--current-user-bg);
-                border-color: var(--current-user-accent);
-            }
-            .participant.other-user {
-                background-color: var(--other-user-bg);
-                border-color: var(--other-user-accent);
-            }
-            #editor {
+            .editor > textarea {
                 display: flex;
-                background: #fff;
+                flex-grow: 1;
+                padding: var(--spacing-md);
+                resize: none;
                 outline: none;
                 border: none;
                 border-radius: var(--border-radius);
-                grid-area: D;
-                margin-bottom: 1rem;
-                padding: 0.5rem;
-                resize: vertical;
-                font-size: var(--font-size-md);
+                scrollbar-width: none;
             }
-            #editor:focus,
-            #editor:active {
-                outline: 1px solid var(--primary-accent);
+            .editor > button {
+                align-self: end;
+                margin-bottom: var(--spacing-md);
+                height: 2.25rem;
+                width: 2.25rem;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                border-radius: 99px;
+                color: #fff;
+                background-color: var(--primary-accent);
+                cursor: pointer;
+                transition: background-color 300ms ease;
+            }
+            .editor > button > * {
+                margin-right: 2px;
             }
             @media (min-width: 700px) {
                 body {
@@ -154,14 +159,12 @@
             <div id="replying" class="notification"></div>
         </div>
         <div id="messages"></div>
-        <div id="participants"></div>
-        <textarea
-            id="editor"
-            id="messageInput"
-            rows="10"
-            autofocus="true"
-            placeholder="👋 Cheryl"
-        ></textarea>
+        <div class="editor">
+            <textarea id="input" placeholder="👋 Cheryl" rows="3"></textarea>
+            <button onclick="sendMessage()"">
+                <i class="fa fa-paper-plane fa-lg"></i>
+            </button>
+        </div>
         <script>
             // Contants
             const ROLE_USER = "user";
@@ -192,15 +195,11 @@
                 users[user.id] = user;
             }
 
-            console.log(connectedUsersIDs)
-            console.log(users)
-
             // Variables
             const toasts = document.getElementById("toasts");
             const replying = document.getElementById("replying");
             const messages = document.getElementById("messages");
-            const participants = document.getElementById("participants");
-            const editor = document.getElementById("editor");
+            const input = document.getElementById("input");
             const socket = io({
                 query: {
                     user_id: getClientID(),
@@ -238,7 +237,7 @@
             }
 
             function _sendMessage() {
-                const content = editor.value.trim();
+                const content = input.value.trim();
 
                 if (content === "") {
                     return;
@@ -249,7 +248,7 @@
                     body: content,
                 });
 
-                editor.value = "";
+                input.value = "";
             }
 
             const sendMessage = debounce(_sendMessage, 150);
@@ -296,24 +295,6 @@
                 messages.scrollTop = messages.scrollHeight;
             }
 
-            function createParticipantElement(user) {
-                const participantClass =
-                    user.id == getClientID() ? "current-user" : "other-user";
-                const participantEl = document.createElement("div");
-                participantEl.innerHTML += getUserName(user.id);
-                participantEl.classList.add("participant", participantClass);
-                return participantEl;
-            }
-
-            function appendParticipants(...users) {
-                const fragment = new DocumentFragment();
-                users.forEach((user) => {
-                    const el = createParticipantElement(user);
-                    fragment.appendChild(el);
-                });
-                participants.appendChild(fragment);
-            }
-
             function showReplyingTo({ user_id }) {
                 const user = users[user_id];
                 replying.innerHTML = `Cheryl is replying to ${user ? user.name : "someone"}`;
@@ -324,27 +305,9 @@
                 replying.classList.remove("enabled");
             }
 
-            // DOM event handlers
-            editor.addEventListener("keypress", function (event) {
-                if (event.key === "Enter" && !event.shiftKey) {
-                    event.preventDefault();
-                    sendMessage();
-                }
-            });
-
             document.addEventListener("DOMContentLoaded", (event) => {
-                editor.focus();
+                input.focus();
                 appendMessages(...initialMessages);
-
-                appendParticipants(
-                    ...initialConnectedUserIDs.reduce((connectedUsers, id) => {
-                        const user = users[id];
-                        if (user) {
-                            connectedUsers.push(user);
-                        }
-                        return connectedUsers;
-                    }, []),
-                );
             });
 
             // Socket event handlers
@@ -363,29 +326,15 @@
                 console.group("User connected");
                 console.log({ user });
 
-                connectedUsersIDs[user.id] = true;
-                console.log({ connectedUsersIDs })
-
                 users[user.id] = user;
                 console.log({ users })
-
-                appendParticipants(user);
 
                 console.groupEnd();
             });
 
-            socket.on("user_disconnected", function (user) {
-              console.group("User disconnected");
-              console.log({ user })
-
-              delete connectedUsersIDs[user.id];
-              console.log({ connectedUsersIDs })
-
-              console.groupEnd();
-            });
-
             socket.on("message_created", function (message) {
                 console.group("Message created");
+
                 console.log({ message });
                 appendMessages(message);
 
@@ -405,7 +354,8 @@
             });
 
             socket.on("disconnect", function () {
-                console.log("Disconnected from server");
+                console.group("Disconnected from server");
+                console.groupEnd();
             });
         </script>
     </body>

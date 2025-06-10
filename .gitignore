@@ -12,3 +12,4 @@ wheels/
 .venv
 .notes
 .prompts.md
+.examples.txt

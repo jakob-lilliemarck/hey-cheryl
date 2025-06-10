@@ -24,10 +24,20 @@
                 gap: var(--spacing-xl);
             }
             p {
-                font-size: var(--font-size-lg);
+                font-size: var(--font-size-md);
                 margin: 0;
                 white-space: normal;
                 text-align: center;
+            }
+            p.ingress {
+                font-size: var(--font-size-lg);
+            }
+            span.accent {
+                color: hsl(
+                    var(--assistant-h),
+                    var(--assistant-s),
+                    calc(var(--assistant-l) - 15%)
+                );
             }
             a {
                 display: inline-block;
@@ -41,13 +51,8 @@
                 padding: var(--spacing-md) var(--spacing-lg);
                 text-decoration: none;
             }
-            a:active {
-                color
-            }
             .signature {
                 color: var(--faint);
-                align-self: end;
-                font-size: 1rem;
             }
             @media (min-width: 700px) {
                 p {
@@ -58,9 +63,9 @@
     </head>
     <body>
         <h1>👋 Cheryl</h1>
-        <p>
-            I present to you Hey-Cheryl a faint and quirky digital echo of our
-            beloved professor.
+        <p class="ingress">
+            I present to you <span class="accent">hey-cheryl.se</span>, a faint
+            and quirky digital echo of our beloved professor.
         </p>
         <p>
             After all, what better way to celebrate a lifelong career of

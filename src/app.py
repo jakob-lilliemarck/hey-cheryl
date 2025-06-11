@@ -66,12 +66,13 @@ class ReplyWithoutBodyError(Exception):
 # A lightweight polling loop to check on Cheryl
 def poll_for_replies():
     while True:
-        logging.info("Background: polling for messages to publish")
         timestamp = datetime.now(timezone.utc)
         reply = messages_service.get_next_reply_to_publish()
 
         # If there are replies waiting to publish
         if reply and reply.message:
+            logging.info(f"poll_for_replies: publishing reply {reply}")
+
             # Create a new message
             message = messages_service.create_assistant_message(
                 content=reply.message,
@@ -209,6 +210,64 @@ def manage():
         concepts=[c.model_dump(mode='json') for c in concepts]
     )
 
+@app.route('/message', methods=["POST"])
+def message():
+    timestamp = datetime.now(timezone.utc)
+    data = request.json
+
+    logging.info(f"message.post: http request recevied. timestamp: {timestamp}, data: {data}")
+
+    if not data:
+        logging.error("message.post: empty json payload received")
+        return "", 400
+
+    user_id_str = data.get('user_id')
+    body = data.get('body', '').strip()
+
+    user_id: Optional[UUID] = None
+    if not user_id_str:
+        logging.error("message.post: missing user_id.")
+        return "", 400
+    else:
+        try:
+            user_id = UUID(user_id_str)
+        except ValueError:
+            logging.error(f"message.post: invalid user_id format '{user_id_str}'.")
+            return "", 400
+
+    if not body:
+        logging.warning(f"message.post: received message with empty body from user {user_id}")
+        return "", 400
+
+    message = messages_service.create_user_message(
+        user_id=user_id,
+        content=body,
+        timestamp=timestamp
+    )
+
+    # Emit it to the room
+    io.emit(
+        'message_created',
+        message.model_dump(mode='json'),
+        to=str(config.CONVERSATION_ID)
+    )
+
+    # Check if there are any replies in progress
+    reply = messages_service.enqueue_if_available(
+        message_id=message.id,
+        timestamp=timestamp
+    )
+    if not reply:
+        logging.info(f"message.post: busy, ignoring message {message.id}")
+        return "", 204
+
+    io.emit(
+        'replying_to',
+        ReplyingTo(user_id=message.user_id).model_dump(mode='json'),
+        to=str(config.CONVERSATION_ID)
+    )
+
+    return "", 204
 
 @app.route('/chat-with-cheryl')
 def chat():
@@ -256,6 +315,9 @@ def on_connect():
     """
     timestamp = datetime.now(timezone.utc)
     user_id = request.args.get('user_id')
+
+    logging.info(f"on_connect: user connected {timestamp}, user_id: {user_id}")
+
     if not user_id:
         raise KeyError("Expected a user_id but none was found")
         return
@@ -282,49 +344,16 @@ def on_connect():
         to=str(config.CONVERSATION_ID)
     )
 
-
-@io.on('user_authored_message')
-def on_message(user_authored_message):
-    """Handles incoming WebSocket messages and sends a response."""
-    timestamp = datetime.now(timezone.utc)
-
-    message = messages_service.create_user_message(
-        user_id=user_authored_message['user_id'],
-        content=user_authored_message['body'],
-        timestamp=timestamp
-    )
-
-    # Emit it to the room
-    logging.info(f"on_message({message.id}): Emitting message to room")
-    io.emit(
-        'message_created',
-        message.model_dump(mode='json'),
-        to=str(config.CONVERSATION_ID)
-    )
-
-    # Check if there are any replies in progress
-    reply = messages_service.enqueue_if_available(
-        message_id=message.id,
-        timestamp=timestamp
-    )
-    if not reply:
-        logging.info(f"on_message({message.id}): Busy")
-        return
-
-    logging.info(f"on_message({message.id}): Emitting replying to user")
-    io.emit(
-        'replying_to',
-        ReplyingTo(user_id=message.user_id).model_dump(mode='json'),
-        to=str(config.CONVERSATION_ID)
-    )
-
 @io.on('disconnect')
 def on_disconnect():
     """Handles WebSocket disconnections."""
     timestamp = datetime.now(timezone.utc)
+    sid = session['sid']
+
+    logging.info(f"on_disconnect: user disconnected {timestamp}, sid: {sid}")
 
     users_service.register_user_disconnection(
-        sid=session['sid'],
+        sid=sid,
         timestamp=timestamp
     )
 

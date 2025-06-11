@@ -44,7 +44,7 @@ class MessagesService():
         content: str,
         timestamp: datetime
     ) -> Message:
-        logging.info("MessagesService::create_assistant_message")
+        logging.info(f"MessagesService.create_assistant_message: timestamp: {timestamp}, content: {content}")
 
         message = self.messages_repository.create_message(Message(
             id=uuid4(),
@@ -124,6 +124,7 @@ class MessagesService():
         content: str
     ) -> Reply:
         logging.info(f"MessagesService.append_reply_content: Appending content for reply {reply.id}")
+
         reply = self.messages_repository.create_reply(Reply(
              id=reply.id,
              timestamp=timestamp,
@@ -138,6 +139,8 @@ class MessagesService():
         reply: Reply,
         timestamp: datetime
     ) -> Reply:
+        logging.info(f"MessagesService.mark_reply_as_published: timestamp: {timestamp}, reply: {reply}")
+
         reply = self.messages_repository.create_reply(Reply(
              id=reply.id,
              timestamp=timestamp,

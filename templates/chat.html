@@ -181,12 +181,24 @@
             </div>
         </div>
         <div id="messages"></div>
-        <div class="editor">
-            <textarea id="input" placeholder="👋 Cheryl" rows="3"></textarea>
-            <button onclick="sendMessage()"">
+        <form
+            id="editor"
+            class="editor"
+            action="{{ url_for('chat') }}"
+            method="POST"
+        >
+            <textarea
+                id="input"
+                name="message_body"
+                placeholder="👋 Cheryl"
+                rows="3"
+            >
+            </textarea>
+            <input type="hidden" name="user_id" id="user_id_field" />
+            <button type="submit">
                 <i class="fa fa-paper-plane fa-lg"></i>
             </button>
-        </div>
+        </form>
         <script>
             // Contants
             const ROLE_USER = "user";
@@ -216,6 +228,8 @@
             const replying = document.getElementById("replying");
             const replyingToText = document.getElementById("replyingToText");
             const messages = document.getElementById("messages");
+            const editor = document.getElementById("editor");
+            const userIdField = document.getElementById("user_id_field");
             const input = document.getElementById("input");
             const socket = io({
                 query: {
@@ -329,6 +343,25 @@
                 if (initialReplyingTo !== null) {
                   showReplyingTo(initialReplyingTo)
                 }
+
+                if (userIdField) {
+                  userIdField.value = getClientID()
+                }
+
+                if (editor && input) {
+                    editor.addEventListener('submit', function(e) {
+                      const trimmed = input.value.trim();
+                      input.value = trimmed;
+                    })
+
+                    if (trimmed === "") {
+                      event.preventDefault();
+                      input.focus();
+                      console.log("message found to be empty after trimming. submission prevented")
+                    }
+                }
+
+
             });
 
             // Socket event handlers

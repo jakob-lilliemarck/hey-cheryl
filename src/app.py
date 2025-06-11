@@ -1,4 +1,4 @@
-from flask import Flask, render_template, session, request, Response
+from flask import Flask, render_template, session, request, Response, url_for, redirect
 from flask_socketio import SocketIO, join_room, leave_room
 from src.config.config import Config
 import logging
@@ -58,7 +58,7 @@ app = Flask(
 app.config['SECRET_KEY'] = config.SECRET_KEY
 app.config['SESSION_TYPE'] = config.SESSION_TYPE
 
-io = SocketIO(app)
+io = SocketIO(app, async_mode='eventlet')
 
 class ReplyWithoutBodyError(Exception):
     pass
@@ -66,12 +66,13 @@ class ReplyWithoutBodyError(Exception):
 # A lightweight polling loop to check on Cheryl
 def poll_for_replies():
     while True:
-        logging.info("Background: polling for messages to publish")
         timestamp = datetime.now(timezone.utc)
         reply = messages_service.get_next_reply_to_publish()
 
         # If there are replies waiting to publish
         if reply and reply.message:
+            logging.info("poll_for_replies: publishing reply {reply}")
+
             # Create a new message
             message = messages_service.create_assistant_message(
                 content=reply.message,
@@ -210,9 +211,66 @@ def manage():
     )
 
 
-@app.route('/chat-with-cheryl')
+class MissigUserID(Exception):
+    pass
+
+class MissingBody(Exception):
+    pass
+
+@app.route('/chat-with-cheryl', methods=['GET', 'POST'])
 def chat():
     """Serves the main HTML page."""
+
+    if request.method == 'POST':
+        now = datetime.now(timezone.utc)
+        user_id_str = request.form.get('user_id')
+        body = request.form.get('message_body', '').strip()
+
+        user_id: Optional[UUID] = None
+        if not user_id_str:
+            logging.error("chat.post: user_id is missing from form submission.")
+            return redirect(url_for('chat'))
+        else:
+            try:
+                user_id = UUID(user_id_str)
+            except ValueError:
+                logging.error(f"chat.post: invalid user_id format '{user_id_str}'. Not a valid UUID.")
+                return redirect(url_for('chat'))
+
+        if not body:
+            logging.error(f"chat.post: missing message body {body}")
+            return redirect(url_for('chat'))
+
+        message = messages_service.create_user_message(
+            user_id=user_id,
+            content=body,
+            timestamp=now
+        )
+
+        # Emit it to the room
+        io.emit(
+            'message_created',
+            message.model_dump(mode='json'),
+            to=str(config.CONVERSATION_ID)
+        )
+
+        # Check if there are any replies in progress
+        reply = messages_service.enqueue_if_available(
+            message_id=message.id,
+            timestamp=now
+        )
+
+        if not reply:
+            logging.info(f"chat.post: busy, will not handle {message.id}")
+
+        logging.info(f"chat.post: replying to message {message.id}")
+
+        io.emit(
+            'replying_to',
+            ReplyingTo(user_id=message.user_id).model_dump(mode='json'),
+            to=str(config.CONVERSATION_ID)
+        )
+
     messages = messages_repository.get_messages(
         conversation_id=config.CONVERSATION_ID,
         timestamp=None,
@@ -255,8 +313,12 @@ def on_connect():
     Handles new WebSocket connections
     """
     timestamp = datetime.now(timezone.utc)
+
+    logging.info(f"socketio::connect: the event handler was called. timestamp: {timestamp}")
+
     user_id = request.args.get('user_id')
     if not user_id:
+        logging.error("socketio::connect: the user_id could not be found")
         raise KeyError("Expected a user_id but none was found")
         return
     user_id = UUID(user_id)
@@ -288,6 +350,8 @@ def on_message(user_authored_message):
     """Handles incoming WebSocket messages and sends a response."""
     timestamp = datetime.now(timezone.utc)
 
+    logging.info(f"socketio.on_message: a user sent a message. timestamp: {timestamp}, user_authored_message: {user_authored_message}")
+
     message = messages_service.create_user_message(
         user_id=user_authored_message['user_id'],
         content=user_authored_message['body'],
@@ -295,7 +359,6 @@ def on_message(user_authored_message):
     )
 
     # Emit it to the room
-    logging.info(f"on_message({message.id}): Emitting message to room")
     io.emit(
         'message_created',
         message.model_dump(mode='json'),
@@ -308,10 +371,10 @@ def on_message(user_authored_message):
         timestamp=timestamp
     )
     if not reply:
-        logging.info(f"on_message({message.id}): Busy")
+        logging.info(f"on_message({message.id}): busy")
         return
 
-    logging.info(f"on_message({message.id}): Emitting replying to user")
+    logging.info(f"socketio.on_message({message.id}): replying to user")
     io.emit(
         'replying_to',
         ReplyingTo(user_id=message.user_id).model_dump(mode='json'),
@@ -322,9 +385,12 @@ def on_message(user_authored_message):
 def on_disconnect():
     """Handles WebSocket disconnections."""
     timestamp = datetime.now(timezone.utc)
+    sid = session['sid']
+
+    logging.info(f"socketio.on_message: a user disconnected. timestamp: {timestamp}, sid: {sid}")
 
     users_service.register_user_disconnection(
-        sid=session['sid'],
+        sid=sid,
         timestamp=timestamp
     )
 
@@ -332,5 +398,7 @@ def on_disconnect():
 
 
 if __name__ == '__main__':
+    logging.info(f"application started")
+
     # Debug = True makes the background task loop very flaky
     io.run(app, debug=config.DEBUG)

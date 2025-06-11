@@ -27,6 +27,7 @@ class UsersService():
         timestamp: datetime,
         name: str | None
     ) -> User:
+        logging.info(f"users_repository.create_user: timestamp: {timestamp}, user_id: {user_id}, name: {name}")
         try:
             user = self.users_repository.get_user(user_id)
         except UserNotFoundError:
@@ -45,6 +46,7 @@ class UsersService():
         timestamp: datetime
     ) -> UserSession:
         sid = uuid4()
+        logging.info(f"users_repository.register_user_connection: timestamp: {timestamp}, user_id: {user_id}, sid: {sid}")
 
         try:
             session = self.users_repository.get_latest_user_session(user_id)

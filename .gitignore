@@ -13,3 +13,5 @@ wheels/
 .notes
 .prompts.md
 .examples.txt
+dump-cheryl-*.sql
+db_restore.sh
